@@ -1,7 +1,7 @@
 #include <arduino.h>
 #include <EEPROM.h>
 #include <HX711.h>
-#include "MMTK_V1.h" 
+#include "MMTK_V1.h"
 #include <TMCStepper.h>
 
 // QA Mode Toggle
@@ -35,9 +35,9 @@ unsigned long LC_divider = 0;
 long LC_offset = 0;
 
 #ifdef READ_POWER_VOLTAGE
-  float powerInput = 0.0f;
+float powerInput = 0.0f;
 #else
-  bool powerInput = false;
+bool powerInput = false;
 #endif
 
 
@@ -70,28 +70,28 @@ ISR(TIMER1_COMPA_vect) {
   if (eStopInput) {
     return;
   }
-  
-  if (MMTKState == running){
-    if (stepperPosition < nextPosition){
+
+  if (MMTKState == running) {
+    if (stepperPosition < nextPosition) {
       stepperDirection = 0;
       digitalWrite(STEPPER_DIR, stepperDirection);
     }
-    else if (stepperPosition > nextPosition){
+    else if (stepperPosition > nextPosition) {
       stepperDirection = 1;
       digitalWrite(STEPPER_DIR, stepperDirection);
     }
-    else if (stepperPosition == nextPosition){
+    else if (stepperPosition == nextPosition) {
       return;
     }
   }
-  
+
   // Check Index Pin, if that is high, increment index counter
-  #ifdef USE_DIRECT_PORT_MANIPULATION_FOR_INDEX
-    if (STEPPER_INDEX_PORT & (1 << STEPPER_INDEX_PIN)) {
-  #else 
-    if (digitalRead(STEPPER_INDEX)) {
-  #endif
-      if (stepperDirection) {
+#ifdef USE_DIRECT_PORT_MANIPULATION_FOR_INDEX
+  if (STEPPER_INDEX_PORT & (1 << STEPPER_INDEX_PIN)) {
+#else
+  if (digitalRead(STEPPER_INDEX)) {
+#endif
+    if (stepperDirection) {
       stepperFeedbackPosition--;
     } else {
       stepperFeedbackPosition++;
@@ -99,12 +99,12 @@ ISR(TIMER1_COMPA_vect) {
   }
 
   // Check Diag Pin, if that is high we stalled last step
-  #ifdef USE_DIRECT_PORT_MANIPULATION_FOR_DIAG
-    stepperStall =  (STEPPER_DIAG_PORT & (1 << STEPPER_DIAG_PIN));
-  #else 
-    stepperStall = digitalRead(STEPPER_DIAG);
-  #endif
- 
+#ifdef USE_DIRECT_PORT_MANIPULATION_FOR_DIAG
+  stepperStall =  (STEPPER_DIAG_PORT & (1 << STEPPER_DIAG_PIN));
+#else
+  stepperStall = digitalRead(STEPPER_DIAG);
+#endif
+
   if (!stepperStall) {
     if (stepperDirection) {
       stepperPosition--;
@@ -114,12 +114,12 @@ ISR(TIMER1_COMPA_vect) {
   }
 
 
-  #ifdef USE_DIRECT_PORT_MANIPULATION_FOR_STEP
-    STEPPER_STEP_PORT ^= 1 << STEPPER_STEP_PIN;
-  #else
-    digitalWrite(STEPPER_STEP, !digitalRead(STEPPER_STEP));
-  #endif
-  
+#ifdef USE_DIRECT_PORT_MANIPULATION_FOR_STEP
+  STEPPER_STEP_PORT ^= 1 << STEPPER_STEP_PIN;
+#else
+  digitalWrite(STEPPER_STEP, !digitalRead(STEPPER_STEP));
+#endif
+
 }
 
 // ******************
@@ -167,9 +167,9 @@ float getCurrentSpeed() {
   if (eStopInput || !TIMSK1) {
     return 0.0f;
   } else {
-    return ( (float)(F_CPU / 8 / TMC_MICROSTEPS) / MECH_STEP_PER_REV / (unsigned int)OCR1A * MECH_MM_PER_REV * 60/2);
+    return ( (float)(F_CPU / 8 / TMC_MICROSTEPS) / MECH_STEP_PER_REV / (unsigned int)OCR1A * MECH_MM_PER_REV * 60 / 2);
   }
-  
+
 }
 
 void tareAll() {
@@ -191,13 +191,13 @@ void setup() {
   {
     pinMode(STEPPER_DIR, OUTPUT);
     digitalWrite(STEPPER_DIR, LOW);
-    
+
     pinMode(STEPPER_STEP, OUTPUT);
     digitalWrite(STEPPER_STEP, LOW);
-    
+
     pinMode(STEPPER_ENN, OUTPUT);
     digitalWrite(STEPPER_ENN, LOW);
-    
+
     pinMode(STEPPER_ENN_SENS, INPUT);
     pinMode(STEPPER_DIAG, INPUT);
     pinMode(STEPPER_INDEX, INPUT);
@@ -233,37 +233,37 @@ void setup() {
   // Setup TMC2209
   // #############
   {
-  TMC2209Stepper stepper(STEPPER_RX, STEPPER_TX, TMC_R_SENS, TMC_ADDRESS);
-  stepper.beginSerial(TMC_SS_BAUD);
+    TMC2209Stepper stepper(STEPPER_RX, STEPPER_TX, TMC_R_SENS, TMC_ADDRESS);
+    stepper.beginSerial(TMC_SS_BAUD);
 
-  stepper.begin();
-  stepper.toff(4);
-  stepper.blank_time(24);
-  stepper.rms_current(TMC_RMS_CURRENT); // mA
-  stepper.microsteps(TMC_MICROSTEPS);
-  stepper.TCOOLTHRS(0xFFFFF); // 20bit max
-  stepper.semin(5);
-  stepper.semax(2);
-  stepper.sedn(0b01);
-  stepper.SGTHRS(TMC_STALL_VALUE);
+    stepper.begin();
+    stepper.toff(4);
+    stepper.blank_time(24);
+    stepper.rms_current(TMC_RMS_CURRENT); // mA
+    stepper.microsteps(TMC_MICROSTEPS);
+    stepper.TCOOLTHRS(0xFFFFF); // 20bit max
+    stepper.semin(5);
+    stepper.semax(2);
+    stepper.sedn(0b01);
+    stepper.SGTHRS(TMC_STALL_VALUE);
 
-  // Setup Stepper Interrupt, Step is triggered and counted here
-  {
-    TCCR1A = 0; // Clear Timer1 Config Regs (16 bit timer)
-    TCCR1B = 0; 
-    TCNT1  = 0; //initialize counter value to 0
-    OCR1A = STEPPER_DEFAULT_TIMER;// = (16*10^6) / (1*1024) - 1 (must be <65536)
-    // turn on CTC mode
-    TCCR1B |= (1 << WGM12);
-    // Set CS11 bits for 8 prescaler
-    TCCR1B |= (1 << CS11);
-    // enable timer compare interrupt
-    TIMSK1 |= (1 << OCIE1A);
+    // Setup Stepper Interrupt, Step is triggered and counted here
+    {
+      TCCR1A = 0; // Clear Timer1 Config Regs (16 bit timer)
+      TCCR1B = 0;
+      TCNT1  = 0; //initialize counter value to 0
+      OCR1A = STEPPER_DEFAULT_TIMER;// = (16*10^6) / (1*1024) - 1 (must be <65536)
+      // turn on CTC mode
+      TCCR1B |= (1 << WGM12);
+      // Set CS11 bits for 8 prescaler
+      TCCR1B |= (1 << CS11);
+      // enable timer compare interrupt
+      TIMSK1 |= (1 << OCIE1A);
+    }
+
   }
 
-  }
-
-
+/*
   // #############
   // Setup HX711
   // #############
@@ -271,16 +271,16 @@ void setup() {
   // Initialize HX711
   {
 
-  // Check EEPROM if there is a stored value. Do this by verifying eeprom magic value
-  unsigned long eepromMagicRead = 0UL;
-  if (EEPROM.get(EEPROM_MAGIC_VALUE_ADDRESS, eepromMagicRead) == EEPROM_MAGIC_VALUE) {
-    // eeprom magic match
-    EEPROM.get(EEPROM_LC_DIVIDER_ADDRESS, LC_divider);
-    EEPROM.get(EEPROM_LC_OFFSET_ADDRESS, LC_offset);
-  } 
-  else 
-  {
-    switch (LC_DEFAULT_GAIN) {
+    // Check EEPROM if there is a stored value. Do this by verifying eeprom magic value
+    unsigned long eepromMagicRead = 0UL;
+    if (EEPROM.get(EEPROM_MAGIC_VALUE_ADDRESS, eepromMagicRead) == EEPROM_MAGIC_VALUE) {
+      // eeprom magic match
+      EEPROM.get(EEPROM_LC_DIVIDER_ADDRESS, LC_divider);
+      EEPROM.get(EEPROM_LC_OFFSET_ADDRESS, LC_offset);
+    }
+    else
+    {
+      switch (LC_DEFAULT_GAIN) {
         case 128:
           // HX711 full range at 128 gain is +-20mv
           // 8388608 is max digital value (max + or -)
@@ -289,24 +289,24 @@ void setup() {
           // Numbers pre devided to easy computation at run time
           LC_divider = (unsigned long) (8388608 / LC_MAX_FORCE / 20 * LC_DRIVE_VOLTAGE * LC_MV_PER_V);
           break;
-  
+
         case 64:
           // HX711 full range at 64 gain is +-40mv
           LC_divider = (unsigned long) (8388608 / LC_MAX_FORCE / 40 * LC_DRIVE_VOLTAGE * LC_MV_PER_V);
           break;
-  
+
         default:
           Serial.print(" = ERROR = \n Load Cell Gain Invalid");
           break;
       }
       LC_offset = LC_DEFAULT_ZERO_OFFSET;
+    }
+
+    loadcell.begin(LOADCELL_DATA, LOADCELL_CLOCK);
+    loadcell.set_scale(LC_divider);
+    loadcell.set_offset(LC_offset);
   }
 
-  loadcell.begin(LOADCELL_DATA, LOADCELL_CLOCK);
-  loadcell.set_scale(LC_divider);
-  loadcell.set_offset(LC_offset);
-  }
-  
 
   // Next State is Stop
   TIMSK1 = 0; // Stop Motor
@@ -318,7 +318,7 @@ void setup() {
   sei(); //allow interrupts
 
 }
-
+*/
 
 
 // ******************************
@@ -328,13 +328,13 @@ void setup() {
 void loop() {
 
   // Monitor Estop Button
-  #ifdef USE_DIRECT_PORT_MANIPULATION_FOR_ENN_SENSE
-    eStopInput = (STEPPER_ENN_SENS_PORT & (1 << STEPPER_ENN_SENS_PIN));
-  #else
-    eStopInput = digitalRead(STEPPER_ENN_SENS);
-  #endif
+#ifdef USE_DIRECT_PORT_MANIPULATION_FOR_ENN_SENSE
+  eStopInput = (STEPPER_ENN_SENS_PORT & (1 << STEPPER_ENN_SENS_PIN));
+#else
+  eStopInput = digitalRead(STEPPER_ENN_SENS);
+#endif
 
-  
+
   // Check if extenal ESTOP is active, if so turn off arduino estop
   if (eStopInput) {
     digitalWrite(STEPPER_ENN, HIGH);
@@ -369,19 +369,19 @@ void loop() {
         if (newSpeed < 6.0f) newSpeed = 6.0;
         // The equation below causes a interger overflow, so swap around order to remedy that
         // newTimerValue = (int) ((F_CPU * 60 * MECH_MM_PER_REV) / (newSpeed * MECH_STEP_PER_REV * TMC_MICROSTEPS * 8));
-        newTimerValue = (F_CPU / 8 / TMC_MICROSTEPS * 60 * MECH_MM_PER_REV / MECH_STEP_PER_REV / newSpeed/2);
-//        Serial.print(F("== NEW SPEED: "));
-//        Serial.print(newSpeed);
-//        Serial.print(F(" -- "));
-//        Serial.println(newTimerValue);
+        newTimerValue = (F_CPU / 8 / TMC_MICROSTEPS * 60 * MECH_MM_PER_REV / MECH_STEP_PER_REV / newSpeed / 2);
+        //        Serial.print(F("== NEW SPEED: "));
+        //        Serial.print(newSpeed);
+        //        Serial.print(F(" -- "));
+        //        Serial.println(newTimerValue);
 
         // Verify value is valid
 
       }
-      
+
     }
 
-    if (incomingByte == 'p' || incomingByte == 'P'){
+    if (incomingByte == 'p' || incomingByte == 'P') {
       // Position
       nextPositionTemp = Serial.parseInt();
       Serial.read();
@@ -395,15 +395,16 @@ void loop() {
         }
       }
     }
-    if (incomingByte == 'c' || incomingByte == 'C') {      
-      LC_divider = loadcell.get_value(10)/49;
+    /*
+    if (incomingByte == 'c' || incomingByte == 'C') {
+      LC_divider = loadcell.get_value(10) / 49;
       loadcell.set_scale(LC_divider);
       EEPROM.put(EEPROM_MAGIC_VALUE_ADDRESS, (unsigned long)EEPROM_MAGIC_VALUE);
       EEPROM.put(EEPROM_LC_DIVIDER_ADDRESS, LC_divider);
       EEPROM.put(EEPROM_LC_OFFSET_ADDRESS, loadcell.get_offset());
     }
-
-    if (incomingByte == 's' || incomingByte == 'S') {      
+*/
+    if (incomingByte == 's' || incomingByte == 'S') {
       if (MMTKState == running) {
         MMTKNextState = hold;
       }
@@ -416,23 +417,23 @@ void loop() {
         }
       }
     }
-    
+
     // Other start symbols ignored
   }
-  
+
   if ( newTimerValue < STEPPER_MAX_TIMER && newTimerValue > STEPPER_MIN_TIMER) {
-      stepperRunTimer = newTimerValue;
-      OCR1A = stepperRunTimer;
-      stepperSpeed = getCurrentSpeed();
-    }
-    nextPosition = nextPositionTemp * 2 * TMC_MICROSTEPS * MECH_STEP_PER_REV / MECH_MM_PER_REV /1000;
+    stepperRunTimer = newTimerValue;
+    OCR1A = stepperRunTimer;
+    stepperSpeed = getCurrentSpeed();
+  }
+  nextPosition = nextPositionTemp * 2 * TMC_MICROSTEPS * MECH_STEP_PER_REV / MECH_MM_PER_REV / 1000;
 
 
   switch (MMTKState) {
     case running: // This is the running and printing stage
       // Press Forward Make Stepper Faster
       //Serial.println("z");
-      
+
       if (forwardButton == press) {
         if ((OCR1A + STEPPER_SPEED_INCREMENT) < STEPPER_MAX_TIMER) {
           OCR1A += STEPPER_SPEED_INCREMENT;
@@ -469,11 +470,11 @@ void loop() {
         break;
       }
       if (tareButton == press || tareButton == down) {
-          tareAll();
+        tareAll();
         break;
       }
       break;
-    
+
     case hold: // Stopped, Motor is Stopped and Hold
       if (auxButton == press || auxButton == down) {
         // Jogging with Aux button held will initiate fast jog
@@ -498,15 +499,15 @@ void loop() {
       }
 
       if (startButton == press || startButton == down) {
-        MMTKNextState = running;        
+        MMTKNextState = running;
         break;
       }
       if (tareButton == press || tareButton == down) {
-          tareAll();
+        tareAll();
         break;
       }
       break;
-    
+
     case jogFwd: // jogging forward
       if (forwardButton == up || forwardButton == release) {
         MMTKNextState = hold;
@@ -517,7 +518,7 @@ void loop() {
         break;
       }
       break;
-    
+
     case jogBak:  // jogging back
       if (backButton == up || backButton == release) {
         MMTKNextState = hold;
@@ -539,7 +540,7 @@ void loop() {
         break;
       }
       break;
-    
+
     case fastBak:  // fast jogging back
       if (backButton == up || backButton == release) {
         MMTKNextState = hold;
@@ -555,49 +556,49 @@ void loop() {
       MMTKNextState = stopped;
       break;
   }
-  
+
   // Read Power Input, If Power Input is not connected, stay stopped
-  #ifdef READ_POWER_VOLTAGE
-    powerInput = (float)(analogRead(POWER_SENSE)) / POWER_SENSE_SCALE;
-    if (powerInput < 6.0f) {
-      MMTKNextState = stopped;
-    }
-  #else
-    powerInput = digitalRead(POWER_SENSE);
-    if (!powerInput) {
-      MMTKNextState = stopped;
-    }
-  #endif
+#ifdef READ_POWER_VOLTAGE
+  powerInput = (float)(analogRead(POWER_SENSE)) / POWER_SENSE_SCALE;
+  if (powerInput < 6.0f) {
+    MMTKNextState = stopped;
+  }
+#else
+  powerInput = digitalRead(POWER_SENSE);
+  if (!powerInput) {
+    MMTKNextState = stopped;
+  }
+#endif
 
 
   // State Transitions
   switch (MMTKNextState)
   {
-  case running: // Transition into running state
+    case running: // Transition into running state
       // Next State is hold
-      
-//      stepperDirection = 0; // Run Forward
-//      digitalWrite(STEPPER_DIR, stepperDirection);
-//      TIMSK1 |= (1 << OCIE1A); // Start Motor
-//      digitalWrite(STEPPER_ENN, LOW); // Motor is Disabled, unlocked
-//      digitalWrite(LED_RUN, HIGH); // RUN LED is ON
-//      digitalWrite(LED_AUX, LOW); // AUX LED is OFF
-//      OCR1A = stepperRunTimer; 
-//      stepperSpeed = getCurrentSpeed();
-//      MMTKState = running;
-        // previous running one direction
+
+      //      stepperDirection = 0; // Run Forward
+      //      digitalWrite(STEPPER_DIR, stepperDirection);
+      //      TIMSK1 |= (1 << OCIE1A); // Start Motor
+      //      digitalWrite(STEPPER_ENN, LOW); // Motor is Disabled, unlocked
+      //      digitalWrite(LED_RUN, HIGH); // RUN LED is ON
+      //      digitalWrite(LED_AUX, LOW); // AUX LED is OFF
+      //      OCR1A = stepperRunTimer;
+      //      stepperSpeed = getCurrentSpeed();
+      //      MMTKState = running;
+      // previous running one direction
 
       TIMSK1 |= (1 << OCIE1A); // Start Motor
       digitalWrite(STEPPER_ENN, LOW); // Motor is Disabled, unlocked
       digitalWrite(LED_RUN, HIGH); // RUN LED is ON
       digitalWrite(LED_AUX, LOW); // AUX LED is OFF
-      OCR1A = stepperRunTimer; 
+      OCR1A = stepperRunTimer;
       stepperSpeed = getCurrentSpeed();
       MMTKState = running;
-      
-      
-    break;
-  case stopped:
+
+
+      break;
+    case stopped:
       // Next State is Stop
       TIMSK1 = 0; // Stop Motor
       digitalWrite(STEPPER_ENN, HIGH); // Motor is Disabled, unlocked
@@ -605,8 +606,8 @@ void loop() {
       digitalWrite(LED_AUX, LOW); // AUX LED is OFF
       stepperSpeed = getCurrentSpeed();
       MMTKState = stopped;
-    break;
-  case hold: 
+      break;
+    case hold:
       // Next State is hold
       TIMSK1 = 0; // Stop Motor
       digitalWrite(STEPPER_ENN, LOW); // Motor is Enabled, locked
@@ -616,8 +617,8 @@ void loop() {
       stepperSpeed = getCurrentSpeed();
       MMTKState = hold;
       delay(10);
-    break;
-  case jogFwd:
+      break;
+    case jogFwd:
       stepperDirection = 1; // Direction, Forward
       digitalWrite(STEPPER_DIR, HIGH);
       TIMSK1 |= (1 << OCIE1A); // Start Motor
@@ -627,8 +628,8 @@ void loop() {
       OCR1A = STEPPER_NORMAL_JOG_TIMER; // Set Normal Jog Speed
       stepperSpeed = getCurrentSpeed();
       MMTKState = jogFwd;
-    break;
-  case fastFwd:
+      break;
+    case fastFwd:
       stepperDirection = 1; // Direction, Forward
       digitalWrite(STEPPER_DIR, HIGH);
       TIMSK1 |= (1 << OCIE1A); // Start Motor
@@ -638,8 +639,8 @@ void loop() {
       OCR1A = STEPPER_FAST_JOG_TIMER; // Set Fast Jog Speed
       stepperSpeed = getCurrentSpeed();
       MMTKState = fastFwd;
-    break;
-  case jogBak:
+      break;
+    case jogBak:
       stepperDirection = 0; // Direction, Back
       digitalWrite(STEPPER_DIR, LOW);
       TIMSK1 |= (1 << OCIE1A); // Start Motor
@@ -649,8 +650,8 @@ void loop() {
       OCR1A = STEPPER_NORMAL_JOG_TIMER; // Set Normal Jog Speed
       stepperSpeed = getCurrentSpeed();
       MMTKState = jogBak;
-    break;
-  case fastBak:
+      break;
+    case fastBak:
       stepperDirection = 0; // Direction, Back
       digitalWrite(STEPPER_DIR, LOW);
       TIMSK1 |= (1 << OCIE1A); // Start Motor
@@ -660,16 +661,17 @@ void loop() {
       OCR1A = STEPPER_FAST_JOG_TIMER; // Set Fast Jog Speed
       stepperSpeed = getCurrentSpeed();
       MMTKState = fastBak;
-    break;
-  default: // No change
-    break;
+      break;
+    default: // No change
+      break;
   }
-      
+
   // Limit Rate of the main loop here so we do not overwhelm the UI
-    if ((millis() - loopLastMillis) < millisPerLoop) {
-      return;
-    }
-    loopLastMillis = millis();
+  if ((millis() - loopLastMillis) < millisPerLoop) {
+    return;
+  }
+  /*
+  loopLastMillis = millis();
 
   // Read Loacell
   // Remove the if statement if you wish to print slower and only new new loadcell value is available
@@ -679,9 +681,9 @@ void loop() {
   } else {
     newLsData = false;
   }
+*/
 
-
-  #ifdef QAMODE
+#ifdef QAMODE
   if (forwardButton == press) {
     // Forward button was pressed
     buttonFwPressed = true;
@@ -717,20 +719,20 @@ void loop() {
   // Logging in QA Mode
   // Normal format + button states
 
-  #endif
+#endif
 
 
   // Logging
   // Logging format
   // NEW_DATA SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE
-  if (MMTKState != stopped || printWhileStopped) {  
+  if (MMTKState != stopped || printWhileStopped) {
 
-    Serial.print(newLsData ? 1:0);
+    Serial.print(newLsData ? 1 : 0);
     Serial.print("\t");
 
     Serial.print(stepperSpeed);
     Serial.print("\t");
-    float stepperPositionFloat = (float) stepperPosition / TMC_MICROSTEPS / MECH_STEP_PER_REV * MECH_MM_PER_REV/2;
+    float stepperPositionFloat = (float) stepperPosition / TMC_MICROSTEPS / MECH_STEP_PER_REV * MECH_MM_PER_REV / 2;
     Serial.print(stepperPositionFloat);
     Serial.print("\t");
     Serial.print(LC_reading);
@@ -748,7 +750,7 @@ void loop() {
 
     Serial.print(powerInput);
     Serial.print("\t");
-    
+
     Serial.print(forwardButton);
     Serial.print("\t");
     Serial.print(backButton);
@@ -761,60 +763,60 @@ void loop() {
     Serial.print("\t");
 
 
-    
-  #ifdef QAMODE
-  // QAMODE
-  if (buttonFwPressed) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (buttonBkPressed) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (buttonTarePressed) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (buttonStartPressed) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (buttonAuxPressed) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (eStopOff) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
-  
-  if (eStopOn) {  
-    Serial.print("OK");
-  } else {
-    Serial.print("-");
-  }
-  Serial.print("\t");
 
-  #endif
-    
+#ifdef QAMODE
+    // QAMODE
+    if (buttonFwPressed) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (buttonBkPressed) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (buttonTarePressed) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (buttonStartPressed) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (buttonAuxPressed) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (eStopOff) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+    if (eStopOn) {
+      Serial.print("OK");
+    } else {
+      Serial.print("-");
+    }
+    Serial.print("\t");
+
+#endif
+
     Serial.print("\n");
   }
 

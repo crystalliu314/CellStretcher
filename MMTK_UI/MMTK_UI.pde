@@ -48,6 +48,8 @@ int[][] XYplotIntData = new int[XYplotIntDataDims[0]][XYplotIntDataDims[1]];
 // This value grows and is used for slicing
 int XYplotCurrentSize = 0;
 
+
+//useful vars ----------------------
 int patternReady = 0;
 int squareWave = 0;
 int sinWave = 0;
@@ -72,6 +74,7 @@ float nextVel = 0;
 double nextPosition1 = 0;
 double nextVel1 = 0;
 
+//useful vars stops here :( -------------------
 
 // ************************
 // ** Variables for Data **
@@ -204,6 +207,11 @@ void setup()
   
   text("NO DATA", XYplotOrigin[0]+XYplotSize[0]/2, XYplotOrigin[1]+XYplotSize[1]/2);
   
+  
+  
+  
+  //good stuff starts here
+  
   patternReady = 0;
   squareWave = 0;
   sinWave = 0;
@@ -300,19 +308,19 @@ void draw()
         currentt = (float) (runT - cycleN*cycleT);
         
         if (squareWave == 1){
-          if (currentt <= timeA){
+          if (currentt <= timeA){   // region A
             nextPosition = currentt/timeA * stretchL;
             nextVel = stretchL/timeA*60;
   
           }
-          else if (currentt > timeA && currentt < (timeA + timeB)){
+          else if (currentt > timeA && currentt < (timeA + timeB)){   //region B
             nextPosition = stretchL;
           }
-          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){
+          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){   //region C
             nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
             nextVel = stretchL/timeC*60;
           }
-          else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){
+          else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){   //region D
             nextPosition = 0;
           }
         int nextP = (int) nextPosition;
@@ -356,6 +364,19 @@ void draw()
         sendData = 0;
       }
       
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      
+      //load cell stuff begins
       
       // Update data to plot only if there is a new data point
       if (newLoadcellData == 1) {
