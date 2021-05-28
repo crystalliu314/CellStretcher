@@ -72,11 +72,11 @@ ISR(TIMER1_COMPA_vect) {
   }
   
   if (MMTKState == running){
-    if (stepperPosition < nextPosition){
+    if (stepperPosition < nextPosition && stepperDirection != 0){
       stepperDirection = 0;
       digitalWrite(STEPPER_DIR, stepperDirection);
     }
-    else if (stepperPosition > nextPosition){
+    else if (stepperPosition > nextPosition && stepperDirection != 1){
       stepperDirection = 1;
       digitalWrite(STEPPER_DIR, stepperDirection);
     }
