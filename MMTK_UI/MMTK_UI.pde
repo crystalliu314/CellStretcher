@@ -48,8 +48,6 @@ int[][] XYplotIntData = new int[XYplotIntDataDims[0]][XYplotIntDataDims[1]];
 // This value grows and is used for slicing
 int XYplotCurrentSize = 0;
 
-
-//useful vars ----------------------
 int patternReady = 0;
 int squareWave = 0;
 int sinWave = 0;
@@ -66,6 +64,7 @@ float timeA = 5000;
 float timeB = 2000;
 float timeC = 5000;
 float timeD = 2000;
+
 float cycleT = 0;
 float currentt = 0.0;
 float lastt = 0.0;
@@ -74,7 +73,6 @@ float nextVel = 0;
 double nextPosition1 = 0;
 double nextVel1 = 0;
 
-//useful vars stops here :( -------------------
 
 // ************************
 // ** Variables for Data **
@@ -207,11 +205,6 @@ void setup()
   
   text("NO DATA", XYplotOrigin[0]+XYplotSize[0]/2, XYplotOrigin[1]+XYplotSize[1]/2);
   
-  
-  
-  
-  //good stuff starts here
-  
   patternReady = 0;
   squareWave = 0;
   sinWave = 0;
@@ -308,19 +301,19 @@ void draw()
         currentt = (float) (runT - cycleN*cycleT);
         
         if (squareWave == 1){
-          if (currentt <= timeA){   // region A
+          if (currentt <= timeA){
             nextPosition = currentt/timeA * stretchL;
             nextVel = stretchL/timeA*60;
   
           }
-          else if (currentt > timeA && currentt < (timeA + timeB)){   //region B
+          else if (currentt > timeA && currentt < (timeA + timeB)){
             nextPosition = stretchL;
           }
-          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){   //region C
+          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){
             nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
             nextVel = stretchL/timeC*60;
           }
-          else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){   //region D
+          else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){
             nextPosition = 0;
           }
         int nextP = (int) nextPosition;
@@ -334,8 +327,8 @@ void draw()
           if (currentt <= timeA){
             nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
             float nextt = currentt + currentt - lastt;
-            double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-            double nextVel2 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+            //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+            double nextVel2 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
             nextVel1 = nextVel2;
           }
           else if (currentt > timeA && currentt < (timeA + timeB)){
@@ -345,7 +338,7 @@ void draw()
           else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){
             currentt = currentt - timeA - timeB;
             nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-            nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+            nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
           }
           else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){
             nextPosition1 = 0;
@@ -364,19 +357,6 @@ void draw()
         sendData = 0;
       }
       
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      
-      //load cell stuff begins
       
       // Update data to plot only if there is a new data point
       if (newLoadcellData == 1) {

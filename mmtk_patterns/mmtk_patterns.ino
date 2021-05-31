@@ -263,7 +263,7 @@ void setup() {
 
   }
 
-/*
+
   // #############
   // Setup HX711
   // #############
@@ -318,7 +318,7 @@ void setup() {
   sei(); //allow interrupts
 
 }
-*/
+
 
 
 // ******************************
@@ -395,15 +395,15 @@ void loop() {
         }
       }
     }
-    /*
-    if (incomingByte == 'c' || incomingByte == 'C') {
+    
+    if (incomingByte == 'c' || incomingByte == 'C') {     //useless?
       LC_divider = loadcell.get_value(10) / 49;
       loadcell.set_scale(LC_divider);
       EEPROM.put(EEPROM_MAGIC_VALUE_ADDRESS, (unsigned long)EEPROM_MAGIC_VALUE);
       EEPROM.put(EEPROM_LC_DIVIDER_ADDRESS, LC_divider);
       EEPROM.put(EEPROM_LC_OFFSET_ADDRESS, loadcell.get_offset());
     }
-*/
+
     if (incomingByte == 's' || incomingByte == 'S') {
       if (MMTKState == running) {
         MMTKNextState = hold;
@@ -670,9 +670,9 @@ void loop() {
   if ((millis() - loopLastMillis) < millisPerLoop) {
     return;
   }
-  /*
+  
   loopLastMillis = millis();
-
+//also useless
   // Read Loacell
   // Remove the if statement if you wish to print slower and only new new loadcell value is available
   if (loadcell.is_ready()) {
@@ -681,7 +681,7 @@ void loop() {
   } else {
     newLsData = false;
   }
-*/
+
 
 #ifdef QAMODE
   if (forwardButton == press) {
