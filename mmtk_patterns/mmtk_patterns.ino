@@ -12,16 +12,16 @@
 // General Vars
 double TMC_PulsePerRev = 0.0f;
 bool eStopInput = true;
-bool stepperDirection = 0;
+bool stepperDirection = 0;   //
 bool stepperStall = false;
 bool lastIndexPin = 0;
 bool currentIndexPin = 0;
-long stepperPosition = 0;
+long stepperPosition = 0;   //
 long stepperFeedbackPosition = 0;
 long nextPositionTemp = 0;
-long nextPosition = 0;
+long nextPosition = 0;      //
 float stepperSpeed = 0.0f;
-int newTimerValue;
+int newTimerValue;          //
 // Set this to select if printing of data should continute when MMTK is haulted
 bool printWhileStopped = true;
 // Set when there is a new data point from load cell
@@ -65,7 +65,7 @@ bool eStopOff = 0;
 #endif
 
 
-// Timer ISR for stepping motor and recording steps
+// Timer ISR for stepping motor and recording steps ----------------------------------
 ISR(TIMER1_COMPA_vect) {
   if (eStopInput) {
     return;
@@ -84,6 +84,8 @@ ISR(TIMER1_COMPA_vect) {
       return;
     }
   }
+
+//----------------------------------------------------------------
 
   // Check Index Pin, if that is high, increment index counter
 #ifdef USE_DIRECT_PORT_MANIPULATION_FOR_INDEX
@@ -369,7 +371,7 @@ void loop() {
         if (newSpeed < 6.0f) newSpeed = 6.0;
         // The equation below causes a interger overflow, so swap around order to remedy that
         // newTimerValue = (int) ((F_CPU * 60 * MECH_MM_PER_REV) / (newSpeed * MECH_STEP_PER_REV * TMC_MICROSTEPS * 8));
-        newTimerValue = (F_CPU / 8 / TMC_MICROSTEPS * 60 * MECH_MM_PER_REV / MECH_STEP_PER_REV / newSpeed / 2);
+        newTimerValue = (F_CPU / 8 / TMC_MICROSTEPS * 60 * MECH_MM_PER_REV / MECH_STEP_PER_REV / newSpeed / 2);    //time between falling and rising pulse for stepper motor
         //        Serial.print(F("== NEW SPEED: "));
         //        Serial.print(newSpeed);
         //        Serial.print(F(" -- "));

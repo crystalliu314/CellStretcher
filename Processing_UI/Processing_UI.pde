@@ -1,12 +1,14 @@
 //import libraries
-import java.awt.Frame;
-import java.awt.BorderLayout;
+//import java.awt.Frame;
+//import java.awt.BorderLayout;
 import controlP5.*; // http://www.sojamo.de/libraries/controlP5/
 import processing.serial.*;
-import java.util.Arrays;
-import javax.swing.JOptionPane;
+//import java.util.Arrays;
+//import javax.swing.JOptionPane;
 import java.lang.Math.*;
-import processing.serial.*;
+
+Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
+
 
 PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
 
@@ -28,11 +30,11 @@ JSONObject mmtkUIConfig;
 // ** Variables for Data **   probably wont need many of these variables
 // ************************
 
-int XYplotCurrentSize = 0;
+//int XYplotCurrentSize = 0;
 
 int patternReady = 0;
 int squareWave = 0;
-int sinWave = 1;
+int sinWave = 0;
 int startT = 0;
 int currentT = 0;
 float runT = 0;
@@ -77,88 +79,345 @@ float[] correctionFactors = new float[2];
 float maxForce = 0;
 float maxDisplacment = 0;
 
+int start=0;
+long runTime=0;
+long endTime=0;
+int gotEndTime=0;
+// Pattern image
+PImage wavePattern;
+
+public static void sleep(int time) {
+  try {
+    Thread.sleep(time);
+  } 
+  catch (Exception e) {
+  }
+}
 
 void setup() {
-  serialPort = new Serial(this, "COM4", 19200);
+  size (1024, 600);  //window size
+  serialPort = new Serial(this, "COM4", 115200);
   cycleT = (timeA + timeB + timeC + timeD);
+
+  surface.setLocation(100, 100);
+  //surface.setResizable(true);
+  surface.setVisible(true);
+  frameRate(25);
+  cp5 = new ControlP5(this);
+
+  int x = 0;
+  int y = 0;
+
+  fill(0, 0, 0);
+
+  cp5.addTextlabel("label")
+    .setText("Cell Stretcher Control Panel")
+    .setPosition(x=15, y=5)
+    .setColorValue(color(0, 0, 0))
+    .setFont(createFont("Arial", 22));
+
+  cp5.addButton("Square")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 10))
+    .setPosition(x, y=50)
+    .setSize(100, 25);
+
+  cp5.addButton("Sinusoid")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 10))
+    .setPosition(x+150, y=50)
+    .setSize(100, 25);
+
+  //println(sinWave);
+  //println(squareWave);
+  //sleep(2000);
+
+  stretchLen=cp5.addTextfield("stretch length (mm)")
+    .setPosition(x=15, y+80)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(0, 0, 0))
+    .setColorBackground(color(255, 255, 255))
+    .setFont(createFont("Arial", 14))
+    .setText("20")
+    .setSize(100, 30)
+    .setAutoClear(false);
+
+  cp5.addButton("Run")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 10))
+    .setPosition(x+190, y+80)
+    .setSize(100, 50);
+
+  TimeA=cp5.addTextfield("time A")
+    .setPosition(x, y = 195)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(68, 114, 196))
+    .setColorBackground(color(68, 114, 196))
+    .setFont(createFont("Arial", 14))
+    .setText("5.0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  TimeB=cp5.addTextfield("time B")
+    .setPosition(x+80, y)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(237, 125, 49))
+    .setColorBackground(color(237, 125, 49))
+    .setFont(createFont("Arial", 14))
+    .setText("2.0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  TimeC=cp5.addTextfield("time C")
+    .setPosition(x+160, y)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(255, 192, 0))
+    .setColorBackground(color(255, 192, 0))
+    .setFont(createFont("Arial", 14))
+    .setText("5.0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  TimeD=cp5.addTextfield("time D")
+    .setPosition(x+240, y)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(112, 173, 71))
+    .setColorBackground(color(112, 173, 71))
+    .setFont(createFont("Arial", 14))
+    .setText("2.0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  Hours=cp5.addTextfield("Hour")
+    .setPosition(x=15, y=285)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(0, 0, 0))
+    .setColorBackground(color(255, 255, 255))
+    .setFont(createFont("Arial", 14))
+    .setText("0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  Minutes=cp5.addTextfield("Min")
+    .setPosition(x+80, y)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(0, 0, 0))
+    .setColorBackground(color(255, 255, 255))
+    .setFont(createFont("Arial", 14))
+    .setText("0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  Seconds=cp5.addTextfield("Sec")
+    .setPosition(x+160, y)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(0, 0, 0))
+    .setColorBackground(color(255, 255, 255))
+    .setFont(createFont("Arial", 14))
+    .setText("0")
+    .setSize(50, 30)
+    .setAutoClear(false);
+
+  textFont(createFont("Arial", 16, true));
 }
 
-void draw(){  
-  lastt = currentt;
-  currentT = millis();
-  runT = (currentT - startT);
-  roundN = Math.floor(runT/cycleT);
-  cycleN = (int) roundN;
-  currentt = (float) (runT - cycleN*cycleT);
-
-
-  /* for seth - creating a new wave: procedure
-  1. find function of desired pattern: x(t)=.... assign x=nextPosition, t=currentT
-  2. find velocity (nextVel) function of pattern: v(t)= x'(t) <-take derivative of x(t), you can use symbolab.com calculator if you haven't learned calculus yet
-      see EXAMPLE below for steps 1 and 2
-      
-  3. pass nextPosition and nextVel to arduino via serial port:
-      serialPort.write("p"+nextPosition+"\nv"+nextVel+"\n");
-  */
-  
-  
-  
-  if (squareWave == 1) {
-    if (currentt <= timeA) {
-      
-      //EXAMPLE------------------------------------
-      nextPosition = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
-      nextVel = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
-      //_________________________________________
-      
-    } else if (currentt > timeA && currentt < (timeA + timeB)) {
-      nextPosition = stretchL;
-      
-    } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-      nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
-      nextVel = stretchL/timeC*60;
-      
-    } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-      nextPosition = 0;
-    }
-    int nextP = (int) nextPosition;   //passing through serial port
-    float nextV = (float) nextVel;
-    String printthis = "p" + nextP + "\nv" + nextV + "\n";
-    serialPort.write(printthis);
-    System.out.println(printthis);
-  }
+void draw() {  
+  background(bgColor);
+  //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
+  text("Wave Form: ", 15, 100);
 
   if (sinWave == 1) {
-    if (currentt <= timeA) {
-      nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
-      float nextt = currentt + currentt - lastt;   //nextt for calculating velocity
-      //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-      double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
-      nextVel1 = nextVel2;
-      
-    } else if (currentt > timeA && currentt < (timeA + timeB)) {
-      nextPosition1 = stretchL;
-      nextVel1 = stretchL/timeA*60;
-      
-    } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-      currentt = currentt - timeA - timeB;
-      nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-      nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
-    
-    } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-      nextPosition1 = 0;
-      nextVel1 = stretchL/timeC*60;
-    }
+    text("Sinusoid", 105, 100);
+    wavePattern = loadImage(//topSketchPath+
+      "/images/SinPattern.jpg");
 
-    int nextP = (int) nextPosition1;
-    float nextV = (float) nextVel1;
-    String printthis = "p" + nextP + "\nv" + nextV + "\n";
-    serialPort.write(printthis);
-    System.out.println(printthis);
+    image(wavePattern, 350, 50, 293, 181);
   }
 
-  //System.out.println(currentT);
+  if (squareWave == 1) {
+    text("Square", 105, 100);
+    wavePattern = loadImage(//topSketchPath+
+      "/images/SquarePattern.jpg");
 
-  //sendData = 0;
-  
+    image(wavePattern, 350, 50, 293, 181);
+  }
+
+  text("Machine run time: ", 15, 270);
+
+  stretchL = float(stretchLen.getText())*1000;
+  timeA = float(TimeA.getText())*1000;
+  timeB = float(TimeB.getText())*1000;
+  timeC = float(TimeC.getText())*1000;
+  timeD = float(TimeD.getText())*1000;
+  cycleT = (timeA + timeB + timeC + timeD);
+
+  //println(start);
+  //sleep(2000);
+
+  if (start==1 && millis()<endTime) {
+    lastt = currentt;
+    currentT = millis();
+    runT = (currentT - startT);
+    roundN = Math.floor(runT/cycleT);
+    cycleN = (int) roundN;
+    currentt = (float) (runT - cycleN*cycleT);
+
+    if (squareWave == 1) {
+      if (currentt <= timeA) {
+
+        //EXAMPLE------------------------------------
+        nextPosition = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
+        nextVel = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
+        //_________________________________________
+      } else if (currentt > timeA && currentt < (timeA + timeB)) {
+        nextPosition = stretchL;
+      } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
+        nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
+        nextVel = stretchL/timeC*60;
+      } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+        nextPosition = 0;
+      }
+      int nextP = (int) nextPosition;   //passing through serial port
+      float nextV = (float) nextVel;
+      String printthis = "p" + nextP + "\nv" + nextV + "\n";
+      serialPort.write(printthis);
+      System.out.println(printthis);
+    }
+
+    if (sinWave == 1) {
+      if (currentt <= timeA) {
+        nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+        float nextt = currentt + currentt - lastt;   //nextt for calculating velocity
+        //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+        double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
+        nextVel1 = nextVel2;
+      } else if (currentt > timeA && currentt < (timeA + timeB)) {
+        nextPosition1 = stretchL;
+        nextVel1 = stretchL/timeA*60;
+      } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
+        currentt = currentt - timeA - timeB;
+        nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+        nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
+      } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+        nextPosition1 = 0;
+        nextVel1 = stretchL/timeC*60;
+      }
+
+      int nextP = (int) nextPosition1;
+      float nextV = (float) nextVel1;
+      String printthis = "p" + nextP + "\nv" + nextV + "\n";
+      serialPort.write(printthis);
+      System.out.println(printthis);
+    }
+
+    //System.out.println(currentT);
+
+    //sendData = 0;
+  }
+  if (millis()>endTime) {
+    gotEndTime=0;
+  }
 }
+void controlEvent(ControlEvent theEvent) {
+  if (theEvent.isController()) {
+    String parameter=theEvent.getController().getName();
+    print(theEvent);
+
+    //if (theEvent.isAssignableFrom(Textfield.class) || theEvent.isAssignableFrom(Toggle.class) || theEvent.isAssignableFrom(Button.class)) {
+    //String parameter = theEvent.getName();
+    String value = "";
+
+    //if (theEvent.isAssignableFrom(Textfield.class))
+    //value = theEvent.getStringValue();
+
+    //else 
+    // if (theEvent.isAssignableFrom(Toggle.class) || theEvent.isAssignableFrom(Button.class))
+    value = theEvent.getValue()+"";
+
+    // print("set "+parameter+" "+value+";\n");
+
+    if (parameter == "input speed") {
+      mmtkVel = float(value);
+      serialPort.write("V" + mmtkVel + "\n");
+    }
+    /*
+    if (parameter == "stretch length (mm)") {
+     stretchL = float(stretchLen.getText())*1000;
+     }
+     
+     if (parameter == "time A") {
+     timeA = float(TimeA.getText())*1000;
+     }
+     
+     if (parameter == "time B") {
+     timeB = float(TimeB.getText())*1000;
+     }
+     
+     if (parameter == "time C") {
+     timeC = float(TimeC.getText())*1000;
+     }
+     
+     if (parameter == "time D") {
+     timeD = float(TimeD.getText())*1000;
+     }
+     
+     cycleT = (timeA + timeB + timeC + timeD);
+     */
+    if (parameter == "Run") {
+      //patternReady = 1;
+      println("run pressed");
+      // sleep(1000);
+      start=1;
+      // startT = millis();
+      if (gotEndTime==0) {
+        runTime=int(Hours.getText())*1200 +int(Minutes.getText())*60 +int(Seconds.getText());  //in seconds
+        println(runTime);
+        endTime=millis()+runTime*1000;
+        println(endTime);
+        gotEndTime=1;
+      }
+    }
+
+    if (parameter == "Square") {
+      squareWave = 1;
+      sinWave = 0;
+    }
+
+    if (parameter == "Sinusoid") {
+      sinWave = 1;
+      squareWave = 0;
+    }
+
+
+    // Send Serial Commands to MMTK
+    if (!mockupSerial) {
+      if (parameter == "Start") {
+        serialPort.write("Begin\n");
+      } else if (parameter == "Tare") {
+        serialPort.write("Tare\n");
+      } else if (parameter == "Stop") {
+        serialPort.write("Stop\n");
+      } else if (parameter == "5kg calibration") {
+        serialPort.write("Calibration\n");
+      }
+    }
+  }
+}
+//}
+
+/* for seth - creating a new wave: procedure
+ 1. find function of desired pattern: x(t)=.... assign x=nextPosition, t=currentT
+ 2. find velocity (nextVel) function of pattern: v(t)= x'(t) <-take derivative of x(t), you can use symbolab.com calculator if you haven't learned calculus yet
+ see EXAMPLE below for steps 1 and 2
+ 
+ 3. pass nextPosition and nextVel to arduino via serial port:
+ serialPort.write("p"+nextPosition+"\nv"+nextVel+"\n");
+ */

@@ -60,10 +60,10 @@ double roundN = 0;
 float mmtkVel = 50.0;
 int bgColor = 200;
 float stretchL = 20000;
-float timeA = 5000;
-float timeB = 2000;
-float timeC = 5000;
-float timeD = 2000;
+float timeA = 2000;
+float timeB = 100;
+float timeC = 3000;
+float timeD = 200;
 
 float cycleT = 0;
 float currentt = 0.0;
@@ -260,7 +260,7 @@ void draw()
       // build the arrays for bar charts and line graphs
       if (tempData.length == 16) {
         // This is a normal data frame
-        // SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE BT_FWD BT_BAK BT_TARE BT_START BT_AUX and a space
+        // SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE BT_FWD BT_BAK BT_ BT_START BT_AUX and a space
         
         try {
           newLoadcellData = Integer.parseInt(trim(tempData[0]));
@@ -329,6 +329,8 @@ void draw()
             float nextt = currentt + currentt - lastt;
             //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
             double nextVel2 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
+            //double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 150);
+            //double nextVel2 = Math.ceil(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA));
             nextVel1 = nextVel2;
           }
           else if (currentt > timeA && currentt < (timeA + timeB)){
@@ -339,6 +341,7 @@ void draw()
             currentt = currentt - timeA - timeB;
             nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
             nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
+            //nextVel1 = Math.ceil(Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)));
           }
           else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){
             nextPosition1 = 0;
