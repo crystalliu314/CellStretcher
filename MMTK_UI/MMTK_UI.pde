@@ -323,26 +323,35 @@ void draw()
         }
         
         if (sinWave == 1){
-          if (currentt <= timeA){
-            nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+          if (currentt <= timeA/2){
             float nextt = currentt + currentt - lastt;
-            double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-            double nextVel2 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-            nextVel1 = nextVel2;
+            nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+          }
+          if (currentt > timeA/2 && currentt <= timeA){
+            nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max(60*Math.cos(lastt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
           }
           else if (currentt > timeA && currentt < (timeA + timeB)){
             nextPosition1 = stretchL;
             nextVel1 = stretchL/timeA*60;
           }
-          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)){
+          else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC/2)){
+            currentt = currentt - timeA - timeB;
+            float nextt = currentt + currentt - lastt;
+            nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max (Math.abs(60*Math.cos(nextt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+          }
+          else if (currentt >= (timeA+timeB+timeC/2) && currentt <= (timeA+timeB+timeC)){
             currentt = currentt - timeA - timeB;
             nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-            nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+            nextVel1 = Math.max (Math.abs(60*Math.cos(lastt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
           }
           else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)){
             nextPosition1 = 0;
             nextVel1 = stretchL/timeC*60;
           }
+        
         
         int nextP = (int) nextPosition1;
         float nextV = (float) nextVel1;

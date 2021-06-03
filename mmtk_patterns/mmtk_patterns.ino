@@ -41,7 +41,6 @@ long LC_offset = 0;
 #endif
 
 
-
 typedef enum {running, stopped, hold, jogFwd, jogBak, fastFwd, fastBak, noChange} MMTKState_t;
 MMTKState_t MMTKState = stopped;
 MMTKState_t MMTKNextState = noChange;
@@ -377,8 +376,7 @@ void loop() {
 
         // Verify value is valid
 
-      }
-      
+      } 
     }
 
     if (incomingByte == 'p' || incomingByte == 'P'){
