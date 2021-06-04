@@ -178,8 +178,8 @@ void tareAll() {
   loadcell.tare();
   stepperPosition = 0;
   stepperFeedbackPosition = 0;
-  Serial.println(" ========= TARE ==========");
-  Serial.print(HEADER_TEXT);
+  //Serial.println(" ========= TARE ==========");
+  //Serial.print(HEADER_TEXT);
 }
 
 void setup() {
@@ -228,7 +228,7 @@ void setup() {
     Serial.begin(115200);
 
     // Print Headers here once we figure out
-    Serial.print(HEADER_TEXT);
+    //Serial.print(HEADER_TEXT);
   }
 
   // #############
@@ -298,7 +298,7 @@ void setup() {
           break;
 
         default:
-          Serial.print(" = ERROR = \n Load Cell Gain Invalid");
+          //Serial.print(" = ERROR = \n Load Cell Gain Invalid");
           break;
       }
       LC_offset = LC_DEFAULT_ZERO_OFFSET;
@@ -590,6 +590,7 @@ void loop() {
       //      MMTKState = running;
       // previous running one direction
 
+      Serial.println('S');
       TIMSK1 |= (1 << OCIE1A); // Start Motor
       digitalWrite(STEPPER_ENN, LOW); // Motor is Disabled, unlocked
       digitalWrite(LED_RUN, HIGH); // RUN LED is ON
@@ -723,7 +724,7 @@ void loop() {
 
 #endif
 
-
+/*
   // Logging
   // Logging format
   // NEW_DATA SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE
@@ -823,6 +824,6 @@ void loop() {
   }
 
 
-
+*/
 
 }

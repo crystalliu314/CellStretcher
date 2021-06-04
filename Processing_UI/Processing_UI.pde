@@ -7,8 +7,6 @@ import processing.serial.*;
 //import javax.swing.JOptionPane;
 import java.lang.Math.*;
 
-Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
-
 
 PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
 
@@ -79,10 +77,22 @@ float[] correctionFactors = new float[2];
 float maxForce = 0;
 float maxDisplacment = 0;
 
+
+Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
+Button sine, square, run;
+Textlabel label;
+
 int start=0;
 long runTime=0;
-long endTime=0;
-int gotEndTime=0;
+long endTime=999999999;
+//int gotEndTime=0;
+int state=0;
+long nextSec;
+int tempCounter=0;
+int hours;
+int mins;
+int secs;
+
 // Pattern image
 PImage wavePattern;
 
@@ -110,19 +120,19 @@ void setup() {
 
   fill(0, 0, 0);
 
-  cp5.addTextlabel("label")
+  label=cp5.addTextlabel("label")
     .setText("Cell Stretcher Control Panel")
     .setPosition(x=15, y=5)
     .setColorValue(color(0, 0, 0))
     .setFont(createFont("Arial", 22));
 
-  cp5.addButton("Square")
+  square=cp5.addButton("Square")
     //.setValue(1)
     .setFont(createFont("Arial Black", 10))
     .setPosition(x, y=50)
     .setSize(100, 25);
 
-  cp5.addButton("Sinusoid")
+  sine=cp5.addButton("Sinusoid")
     //.setValue(1)
     .setFont(createFont("Arial Black", 10))
     .setPosition(x+150, y=50)
@@ -143,7 +153,7 @@ void setup() {
     .setSize(100, 30)
     .setAutoClear(false);
 
-  cp5.addButton("Run")
+  run=cp5.addButton("Run")
     //.setValue(1)
     .setFont(createFont("Arial Black", 10))
     .setPosition(x+190, y+80)
@@ -229,101 +239,245 @@ void setup() {
   textFont(createFont("Arial", 16, true));
 }
 
-void draw() {  
-  background(bgColor);
-  //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
-  text("Wave Form: ", 15, 100);
-
-  if (sinWave == 1) {
-    text("Sinusoid", 105, 100);
-    wavePattern = loadImage(//topSketchPath+
-      "/images/SinPattern.jpg");
-
-    image(wavePattern, 350, 50, 293, 181);
-  }
-
-  if (squareWave == 1) {
-    text("Square", 105, 100);
-    wavePattern = loadImage(//topSketchPath+
-      "/images/SquarePattern.jpg");
-
-    image(wavePattern, 350, 50, 293, 181);
-  }
-
-  text("Machine run time: ", 15, 270);
-
-  stretchL = float(stretchLen.getText())*1000;
-  timeA = float(TimeA.getText())*1000;
-  timeB = float(TimeB.getText())*1000;
-  timeC = float(TimeC.getText())*1000;
-  timeD = float(TimeD.getText())*1000;
-  cycleT = (timeA + timeB + timeC + timeD);
-
-  //println(start);
-  //sleep(2000);
-
-  if (start==1 && millis()<endTime) {
-    lastt = currentt;
-    currentT = millis();
-    runT = (currentT - startT);
-    roundN = Math.floor(runT/cycleT);
-    cycleN = (int) roundN;
-    currentt = (float) (runT - cycleN*cycleT);
-
-    if (squareWave == 1) {
-      if (currentt <= timeA) {
-
-        //EXAMPLE------------------------------------
-        nextPosition = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
-        nextVel = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
-        //_________________________________________
-      } else if (currentt > timeA && currentt < (timeA + timeB)) {
-        nextPosition = stretchL;
-      } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-        nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
-        nextVel = stretchL/timeC*60;
-      } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-        nextPosition = 0;
-      }
-      int nextP = (int) nextPosition;   //passing through serial port
-      float nextV = (float) nextVel;
-      String printthis = "p" + nextP + "\nv" + nextV + "\n";
-      serialPort.write(printthis);
-      System.out.println(printthis);
+void draw() { //----------------------------------------------------------------------------------------------------------------------------------------------- 
+  if (serialPort.available()>0) {
+    //String incomingVal=serialPort.readStringUntil('\n');
+    char incomingVal=serialPort.readChar();
+    println();
+    print(incomingVal);
+    // println("Tare");
+    //println(incomingVal.equals("Tare"));
+    if (incomingVal=='S') {
+      //println(state); 
+      state=1; 
+      //println(state);
     }
+  }
+  if (state==0) {
+    background(#CE8787);
+    stretchLen.hide();
+    TimeA.hide();
+    TimeB.hide(); 
+    TimeC.hide(); 
+    TimeD.hide(); 
+    Hours.hide(); 
+    Minutes.hide(); 
+    Seconds.hide();
+    sine.hide(); 
+    square.hide(); 
+    run.hide();
+    label.hide();
+
+    int nextP =0;   //moving back to initial position
+    float nextV = 200;
+    String printthis = "p" + nextP + "\nv" + nextV + "\n";
+    serialPort.write(printthis);
+    //System.out.println(printthis);
+    
+    fill(0, 0, 0);
+    textSize(50);
+    text("Please Set Initial Position", 155, 135);
+    textSize(30);
+    text("1. Press AUX button until red LED disappears", 100, 250);
+    text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
+    text("3. Press TARE button to set initial position", 100, 350);
+    text("4. Press START button to ready stretcher for pattern input", 100, 400);
+    
+  } else if (state==1) {
+
+    background(bgColor);
+    textSize(16);
+    stretchLen.show();
+    TimeA.show();
+    TimeB.show(); 
+    TimeC.show(); 
+    TimeD.show(); 
+    Hours.show(); 
+    Minutes.show(); 
+    Seconds.show();
+    sine.show(); 
+    square.show(); 
+    run.show();
+    label.show();
+    //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
+    text("Wave Form: ", 15, 100);
 
     if (sinWave == 1) {
-      if (currentt <= timeA) {
-        nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
-        float nextt = currentt + currentt - lastt;   //nextt for calculating velocity
-        //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-        double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
-        nextVel1 = nextVel2;
-      } else if (currentt > timeA && currentt < (timeA + timeB)) {
-        nextPosition1 = stretchL;
-        nextVel1 = stretchL/timeA*60;
-      } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-        currentt = currentt - timeA - timeB;
-        nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-        nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
-      } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-        nextPosition1 = 0;
-        nextVel1 = stretchL/timeC*60;
-      }
+      text("Sinusoid", 105, 100);
+      wavePattern = loadImage(//topSketchPath+
+        "/images/SinPattern.jpg");
 
-      int nextP = (int) nextPosition1;
-      float nextV = (float) nextVel1;
-      String printthis = "p" + nextP + "\nv" + nextV + "\n";
-      serialPort.write(printthis);
-      System.out.println(printthis);
+      image(wavePattern, 350, 50, 293, 181);
     }
 
-    //System.out.println(currentT);
+    if (squareWave == 1) {
+      text("Square", 105, 100);
+      wavePattern = loadImage(//topSketchPath+
+        "/images/SquarePattern.jpg");
 
-    //sendData = 0;
-  }
-  if (millis()>endTime) {
-    gotEndTime=0;
+      image(wavePattern, 350, 50, 293, 181);
+    }
+
+    text("Machine run time: ", 15, 270);
+
+    stretchL = float(stretchLen.getText())*1000;
+    timeA = float(TimeA.getText())*1000;
+    timeB = float(TimeB.getText())*1000;
+    timeC = float(TimeC.getText())*1000;
+    timeD = float(TimeD.getText())*1000;
+    cycleT = (timeA + timeB + timeC + timeD);
+
+    //println(start);
+    //sleep(2000);
+  } else if (state==2) {
+    background(#18C452);
+    stretchLen.hide();
+    TimeA.hide();
+    TimeB.hide(); 
+    TimeC.hide(); 
+    TimeD.hide(); 
+    Hours.hide(); 
+    Minutes.hide(); 
+    Seconds.hide();
+    sine.hide(); 
+    square.hide(); 
+    run.hide();
+    label.hide();
+    
+    if (start==1 && millis()<endTime) {
+      if(millis()>=nextSec){
+        nextSec=millis()+1000;
+        
+        secs--;
+        if (secs<0) {
+        mins--;
+        secs=59;
+      }
+
+      if (mins<0) {
+        hours--;
+        mins=59;
+      }  
+        //text(tempCounter, 100,100);
+        //tempCounter++;
+      }
+      
+       //displaying timer 
+      fill(0, 0, 0);
+      textSize(55);
+      text(hours+":", 275, 250);
+
+      fill(0, 0, 0);
+      textSize(55);
+      text(mins+":", 375, 250);
+
+      fill(0, 0, 0);
+      textSize(55);
+      text(secs, 475, 250);
+      //nextSec=nextSec+1000;
+      
+      lastt = currentt;
+      currentT = millis();
+      runT = (currentT - startT);
+      roundN = Math.floor(runT/cycleT);
+      cycleN = (int) roundN;
+      currentt = (float) (runT - cycleN*cycleT);
+
+      if (squareWave == 1) {
+        if (currentt <= timeA) {
+
+          //EXAMPLE------------------------------------
+          nextPosition = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
+          nextVel = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
+          //_________________________________________
+        } else if (currentt > timeA && currentt < (timeA + timeB)) {
+          nextPosition = stretchL;
+        } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
+          nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
+          nextVel = stretchL/timeC*60;
+        } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+          nextPosition = 0;
+        }
+        int nextP = (int) nextPosition;   //passing through serial port
+        float nextV = (float) nextVel;
+        String printthis = "p" + nextP + "\nv" + nextV + "\n";
+        serialPort.write(printthis);
+        System.out.println(printthis);
+      }
+      /*
+    if (sinWave == 1) {
+       if (currentt <= timeA) {
+       nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+       float nextt = currentt + currentt - lastt;   //nextt for calculating velocity
+       //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+       double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
+       nextVel1 = nextVel2;
+       } else if (currentt > timeA && currentt < (timeA + timeB)) {
+       nextPosition1 = stretchL;
+       nextVel1 = stretchL/timeA*60;
+       } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
+       currentt = currentt - timeA - timeB;
+       nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+       nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
+       } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+       nextPosition1 = 0;
+       nextVel1 = stretchL/timeC*60;
+       }
+       
+       int nextP = (int) nextPosition1;
+       float nextV = (float) nextVel1;
+       String printthis = "p" + nextP + "\nv" + nextV + "\n";
+       serialPort.write(printthis);
+       System.out.println(printthis);
+       }
+       */
+      if (sinWave == 1) {
+        if (currentt <= timeA/2) {
+          float nextt = currentt + currentt - lastt;
+          nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+          nextVel1 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+        }
+        if (currentt > timeA/2 && currentt <= timeA) {
+          nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+          nextVel1 = Math.max(60*Math.cos(lastt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+        } else if (currentt > timeA && currentt < (timeA + timeB)) {
+          nextPosition1 = stretchL;
+          nextVel1 = stretchL/timeA*60;
+        } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC/2)) {
+          currentt = currentt - timeA - timeB;
+          float nextt = currentt + currentt - lastt;
+          nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+          nextVel1 = Math.max (Math.abs(60*Math.cos(nextt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+        } else if (currentt >= (timeA+timeB+timeC/2) && currentt <= (timeA+timeB+timeC)) {
+          currentt = currentt - timeA - timeB;
+          nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+          nextVel1 = Math.max (Math.abs(60*Math.cos(lastt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+        } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+          nextPosition1 = 0;
+          nextVel1 = stretchL/timeC*60;
+        }
+
+
+        int nextP = (int) nextPosition1;
+        float nextV = (float) nextVel1;
+        String printthis = "p" + nextP + "\nv" + nextV + "\n";
+        serialPort.write(printthis);
+        System.out.println(printthis);
+      }
+
+      //System.out.println(currentT);
+
+      sendData = 0;
+      //System.out.println(currentT);
+
+      //sendData = 0;
+    }
+    if (millis()>endTime) {
+      //gotEndTime=0;
+      state=0;
+      endTime=999999999;
+      start=0;
+    }
   }
 }
 void controlEvent(ControlEvent theEvent) {
@@ -376,14 +530,26 @@ void controlEvent(ControlEvent theEvent) {
       println("run pressed");
       // sleep(1000);
       start=1;
+      state=2;
+      //nextPosition=0;
+      //nextPosition1=0;
+      //nextVel=0;
+      //nextVel1=0;
+      startT=millis();
       // startT = millis();
-      if (gotEndTime==0) {
-        runTime=int(Hours.getText())*1200 +int(Minutes.getText())*60 +int(Seconds.getText());  //in seconds
-        println(runTime);
+      //if (gotEndTime==0) {
+        hours=int(Hours.getText());
+        mins=int(Minutes.getText());
+        secs=int(Seconds.getText());
+        
+        runTime=hours*1200 +mins*60 +secs;  //in seconds
+        //println(runTime);
         endTime=millis()+runTime*1000;
-        println(endTime);
-        gotEndTime=1;
-      }
+        //println(endTime);
+        nextSec=millis()+1000;
+       // gotEndTime=1;
+        //start=1;
+      //}
     }
 
     if (parameter == "Square") {
