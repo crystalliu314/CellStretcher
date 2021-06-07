@@ -79,7 +79,7 @@ float maxDisplacment = 0;
 
 
 Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
-Button sine, square, run;
+Button sine, square, run, cancel, pause, restart;
 Textlabel label;
 
 int start=0;
@@ -92,6 +92,12 @@ int tempCounter=0;
 int hours;
 int mins;
 int secs;
+
+long pauseStart;
+long pauseFin;
+long pauseShift;
+boolean isPaused=false;
+
 
 // Pattern image
 PImage wavePattern;
@@ -122,119 +128,142 @@ void setup() {
 
   label=cp5.addTextlabel("label")
     .setText("Cell Stretcher Control Panel")
-    .setPosition(x=15, y=5)
+    .setPosition(x=15, y=7)
     .setColorValue(color(0, 0, 0))
-    .setFont(createFont("Arial", 22));
+    .setFont(createFont("Arial Bold", 35));
 
   square=cp5.addButton("Square")
     //.setValue(1)
-    .setFont(createFont("Arial Black", 10))
-    .setPosition(x, y=50)
-    .setSize(100, 25);
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x, y=75)
+    .setSize(200, 75);
 
   sine=cp5.addButton("Sinusoid")
     //.setValue(1)
-    .setFont(createFont("Arial Black", 10))
-    .setPosition(x+150, y=50)
-    .setSize(100, 25);
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x+275, y=75)
+    .setSize(200, 75);
 
   //println(sinWave);
   //println(squareWave);
   //sleep(2000);
 
   stretchLen=cp5.addTextfield("stretch length (mm)")
-    .setPosition(x=15, y+80)
+    .setPosition(x=15, y+100)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("20")
-    .setSize(100, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
-  run=cp5.addButton("Run")
-    //.setValue(1)
-    .setFont(createFont("Arial Black", 10))
-    .setPosition(x+190, y+80)
-    .setSize(100, 50);
 
   TimeA=cp5.addTextfield("time A")
-    .setPosition(x, y = 195)
+    .setPosition(x, y = 300)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(68, 114, 196))
     .setColorBackground(color(68, 114, 196))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("5.0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   TimeB=cp5.addTextfield("time B")
-    .setPosition(x+80, y)
+    .setPosition(x+125, y)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(237, 125, 49))
     .setColorBackground(color(237, 125, 49))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("2.0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   TimeC=cp5.addTextfield("time C")
-    .setPosition(x+160, y)
+    .setPosition(x+250, y)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(255, 192, 0))
     .setColorBackground(color(255, 192, 0))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("5.0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   TimeD=cp5.addTextfield("time D")
-    .setPosition(x+240, y)
+    .setPosition(x+375, y)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(112, 173, 71))
     .setColorBackground(color(112, 173, 71))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("2.0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   Hours=cp5.addTextfield("Hour")
-    .setPosition(x=15, y=285)
+    .setPosition(x=15, y=475)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   Minutes=cp5.addTextfield("Min")
-    .setPosition(x+80, y)
+    .setPosition(x+125, y)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
-    .setFont(createFont("Arial", 14))
+    .setFont(createFont("Arial", 20))
     .setText("0")
-    .setSize(50, 30)
+    .setSize(100, 50)
     .setAutoClear(false);
 
   Seconds=cp5.addTextfield("Sec")
-    .setPosition(x+160, y)
+    .setPosition(x+250, y)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
-    .setFont(createFont("Arial", 14))
-    .setText("0")
-    .setSize(50, 30)
+    .setFont(createFont("Arial", 20))
+    .setText("25")
+    .setSize(100, 50)
     .setAutoClear(false);
+
+  run=cp5.addButton("Run")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(700, y=475)
+    .setSize(200, 75)
+    .setColorBackground(#FA0000)
+    .setColorForeground(#FF7C80);
+
+  cancel=cp5.addButton("Cancel")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(675, 450)
+    .setSize(200, 75)
+    .setColorBackground(#FA0000)
+    .setColorForeground(#FF7C80);
+
+  pause=cp5.addButton("pause")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(125, 450)
+    .setSize(200, 75);
+
+  restart=cp5.addButton("restart")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(400, 450)
+    .setSize(200, 75);
 
   textFont(createFont("Arial", 16, true));
 }
@@ -254,7 +283,7 @@ void draw() { //----------------------------------------------------------------
     }
   }
   if (state==0) {
-    background(#CE8787);
+    background(bgColor);
     stretchLen.hide();
     TimeA.hide();
     TimeB.hide(); 
@@ -266,14 +295,22 @@ void draw() { //----------------------------------------------------------------
     sine.hide(); 
     square.hide(); 
     run.hide();
+    cancel.hide();
+    pause.hide();
+    restart.hide();
     label.hide();
+
+    restart.setColorBackground(#002b5c); 
+    pause.setColorBackground(#002b5c);
+    sine.setColorBackground(#002b5c); 
+    square.setColorBackground(#002b5c);
 
     int nextP =0;   //moving back to initial position
     float nextV = 200;
     String printthis = "p" + nextP + "\nv" + nextV + "\n";
     serialPort.write(printthis);
-    //System.out.println(printthis);
-    
+    System.out.println(printthis);
+
     fill(0, 0, 0);
     textSize(50);
     text("Please Set Initial Position", 155, 135);
@@ -282,7 +319,6 @@ void draw() { //----------------------------------------------------------------
     text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
     text("3. Press TARE button to set initial position", 100, 350);
     text("4. Press START button to ready stretcher for pattern input", 100, 400);
-    
   } else if (state==1) {
 
     background(bgColor);
@@ -300,25 +336,27 @@ void draw() { //----------------------------------------------------------------
     run.show();
     label.show();
     //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
-    text("Wave Form: ", 15, 100);
+
+
+    // text("Wave Form: ", 600, 400);
 
     if (sinWave == 1) {
-      text("Sinusoid", 105, 100);
+      // text("Sinusoid", 675, 400);
       wavePattern = loadImage(//topSketchPath+
         "/images/SinPattern.jpg");
 
-      image(wavePattern, 350, 50, 293, 181);
+      image(wavePattern, 505, 75, 500, 309);
     }
 
     if (squareWave == 1) {
-      text("Square", 105, 100);
+      //text("Square", 675, 400);
       wavePattern = loadImage(//topSketchPath+
         "/images/SquarePattern.jpg");
 
-      image(wavePattern, 350, 50, 293, 181);
+      image(wavePattern, 505, 75, 500, 309);
     }
-
-    text("Machine run time: ", 15, 270);
+    textSize(30);
+    text("Machine run time: ", 15, 450);
 
     stretchL = float(stretchLen.getText())*1000;
     timeA = float(TimeA.getText())*1000;
@@ -330,7 +368,7 @@ void draw() { //----------------------------------------------------------------
     //println(start);
     //sleep(2000);
   } else if (state==2) {
-    background(#18C452);
+    background(bgColor);
     stretchLen.hide();
     TimeA.hide();
     TimeB.hide(); 
@@ -343,26 +381,29 @@ void draw() { //----------------------------------------------------------------
     square.hide(); 
     run.hide();
     label.hide();
-    
+    cancel.show();
+    pause.show();
+    restart.show();
+
     if (start==1 && millis()<endTime) {
-      if(millis()>=nextSec){
+      if (millis()>=nextSec&&isPaused==false) {
         nextSec=millis()+1000;
-        
+
         secs--;
         if (secs<0) {
-        mins--;
-        secs=59;
-      }
+          mins--;
+          secs=59;
+        }
 
-      if (mins<0) {
-        hours--;
-        mins=59;
-      }  
+        if (mins<0) {
+          hours--;
+          mins=59;
+        }  
         //text(tempCounter, 100,100);
         //tempCounter++;
       }
-      
-       //displaying timer 
+
+      //displaying timer 
       fill(0, 0, 0);
       textSize(55);
       text(hours+":", 275, 250);
@@ -375,15 +416,15 @@ void draw() { //----------------------------------------------------------------
       textSize(55);
       text(secs, 475, 250);
       //nextSec=nextSec+1000;
-      
-      lastt = currentt;
-      currentT = millis();
-      runT = (currentT - startT);
-      roundN = Math.floor(runT/cycleT);
-      cycleN = (int) roundN;
-      currentt = (float) (runT - cycleN*cycleT);
 
-      if (squareWave == 1) {
+      lastt = currentt;
+      currentT = millis()-(int)pauseShift;
+      runT = (currentT - startT);   //time now to start
+      roundN = Math.floor(runT/cycleT);   //which "round" of wave length are we on?
+      cycleN = (int) roundN;
+      currentt = (float) (runT - cycleN*cycleT);   //converts running time to limited domain loop (0 and runT)
+
+      if (squareWave == 1&&isPaused==false) {
         if (currentt <= timeA) {
 
           //EXAMPLE------------------------------------
@@ -431,7 +472,7 @@ void draw() { //----------------------------------------------------------------
        System.out.println(printthis);
        }
        */
-      if (sinWave == 1) {
+      if (sinWave == 1&&isPaused==false) {
         if (currentt <= timeA/2) {
           float nextt = currentt + currentt - lastt;
           nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
@@ -538,28 +579,73 @@ void controlEvent(ControlEvent theEvent) {
       startT=millis();
       // startT = millis();
       //if (gotEndTime==0) {
-        hours=int(Hours.getText());
-        mins=int(Minutes.getText());
-        secs=int(Seconds.getText());
-        
-        runTime=hours*1200 +mins*60 +secs;  //in seconds
-        //println(runTime);
-        endTime=millis()+runTime*1000;
-        //println(endTime);
-        nextSec=millis()+1000;
-       // gotEndTime=1;
-        //start=1;
+      hours=int(Hours.getText());
+      mins=int(Minutes.getText());
+      secs=int(Seconds.getText());
+
+      runTime=hours*1200 +mins*60 +secs;  //in seconds
+      //println(runTime);
+      endTime=millis()+runTime*1000;
+      //println(endTime);
+      nextSec=millis()+1000;
+      // gotEndTime=1;
+      //start=1;
       //}
     }
 
     if (parameter == "Square") {
       squareWave = 1;
       sinWave = 0;
+      square.setColorBackground(#4B70FF); 
+      sine.setColorBackground(#002b5c);
     }
 
     if (parameter == "Sinusoid") {
       sinWave = 1;
       squareWave = 0;
+      sine.setColorBackground(#4B70FF);
+      square.setColorBackground(#002b5c);
+    }
+
+    if (parameter == "Cancel") {
+      state=0;
+      endTime=999999999;
+      start=0;
+    }
+
+    if (parameter == "pause") {
+      isPaused=true;
+      pauseStart=millis();
+      pause.setColorBackground(#4B70FF); 
+      restart.setColorBackground(#002b5c);
+    }
+
+    if (parameter == "restart") {
+      isPaused=false;
+      pauseFin=millis();
+      endTime=endTime+(pauseFin-pauseStart);   //readjust endTime
+      pauseShift=pauseShift+(pauseFin-pauseStart);
+      nextSec=nextSec+pauseFin-pauseStart;
+
+      restart.setColorBackground(#4B70FF); 
+      pause.setColorBackground(#002b5c);
+      /*  FAILED ATTEMPT AT PAUSE RESTART FUNCTION
+       pauseShift=pauseShift+(long)(pauseFin-(Math.floor((pauseFin-startT)/cycleT)*cycleT))-(long)(pauseStart-(Math.floor((pauseStart-startT)/cycleT)*cycleT));
+       println("pauseStart: "+pauseStart);
+       println("pauseFin: "+pauseFin);
+       println("runT: "+runT);
+       println("startT: "+startT);
+       println("cycleT: "+cycleT);
+       println(": "+(pauseFin-startT)/cycleT);
+       println(": "+(pauseStart-startT)/cycleT);
+       
+       println("floor: "+Math.floor((pauseFin-startT)/cycleT));
+       println("floor: "+Math.floor((pauseStart-startT)/cycleT));
+       println(pauseFin-(Math.floor((pauseFin-startT)/cycleT)*cycleT));
+       println(pauseStart-(Math.floor((pauseStart-startT)/cycleT)*cycleT));
+       println("PauseShift: "+pauseShift);
+       //sleep(3000);
+       */
     }
 
 
