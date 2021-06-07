@@ -1,17 +1,13 @@
-//import libraries
-//import java.awt.Frame;
-//import java.awt.BorderLayout;
+
 import controlP5.*; // http://www.sojamo.de/libraries/controlP5/
 import processing.serial.*;
-//import java.util.Arrays;
-//import javax.swing.JOptionPane;
 import java.lang.Math.*;
 
 
 PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
 
 // If you want to debug the plotter without using a real serial port set this to true
-boolean mockupSerial = false;
+//boolean mockupSerial = false;
 
 // Serial Setup
 String serialPortName;
@@ -22,7 +18,7 @@ ControlP5 cp5;
 //ControlFrame cf;
 
 // Settings for MMUK UI are stored in this config file
-JSONObject mmtkUIConfig;
+//JSONObject mmtkUIConfig;
 
 // ************************
 // ** Variables for Data **   probably wont need many of these variables
@@ -77,31 +73,33 @@ float[] correctionFactors = new float[2];
 float maxForce = 0;
 float maxDisplacment = 0;
 
-
+//steven's added variables
+//Cp5 buttons, text etc.
 Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
 Button sine, square, run, cancel, pause, restart;
 Textlabel label;
 
-int start=0;
-long runTime=0;
-long endTime=999999999;
-//int gotEndTime=0;
 int state=0;
-long nextSec;
-int tempCounter=0;
-int hours;
+int start=0;
+long runTime=0;  
+long endTime=999999999;
+long nextSec;  //used to store millis() of next second, used to adjust countdown timer every second
+//int tempCounter=0;
+int hours;  //stores user entered runtime values
 int mins;
 int secs;
 
-long pauseStart;
-long pauseFin;
-long pauseShift;
+long pauseStart;  //millis() of start of pause
+long pauseFin;   //millis() of end of pause
+long pauseShift;   //sum of all paused durations, subtract from system millis() to restart pattern where it was paused  
 boolean isPaused=false;
 
 
 // Pattern image
 PImage wavePattern;
 
+//used for testing
+/*
 public static void sleep(int time) {
   try {
     Thread.sleep(time);
@@ -109,6 +107,7 @@ public static void sleep(int time) {
   catch (Exception e) {
   }
 }
+*/
 
 void setup() {
   size (1024, 600);  //window size
@@ -270,19 +269,16 @@ void setup() {
 
 void draw() { //----------------------------------------------------------------------------------------------------------------------------------------------- 
   if (serialPort.available()>0) {
-    //String incomingVal=serialPort.readStringUntil('\n');
     char incomingVal=serialPort.readChar();
     println();
     print(incomingVal);
-    // println("Tare");
-    //println(incomingVal.equals("Tare"));
-    if (incomingVal=='S') {
-      //println(state); 
+
+    if (incomingVal=='S') {  //S for start, from arduino
       state=1; 
-      //println(state);
     }
   }
-  if (state==0) {
+  
+  if (state==0) {      //jog, tare, start state
     background(bgColor);
     stretchLen.hide();
     TimeA.hide();
@@ -305,7 +301,7 @@ void draw() { //----------------------------------------------------------------
     sine.setColorBackground(#002b5c); 
     square.setColorBackground(#002b5c);
 
-    int nextP =0;   //moving back to initial position
+    int nextP =0;   //moving back to initial position so sample can be removed
     float nextV = 200;
     String printthis = "p" + nextP + "\nv" + nextV + "\n";
     serialPort.write(printthis);
@@ -319,8 +315,8 @@ void draw() { //----------------------------------------------------------------
     text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
     text("3. Press TARE button to set initial position", 100, 350);
     text("4. Press START button to ready stretcher for pattern input", 100, 400);
-  } else if (state==1) {
-
+    
+  } else if (state==1) {     //get user parameters state, transistion to running state via run button
     background(bgColor);
     textSize(16);
     stretchLen.show();
@@ -367,7 +363,7 @@ void draw() { //----------------------------------------------------------------
 
     //println(start);
     //sleep(2000);
-  } else if (state==2) {
+  } else if (state==2) {    //running - displaying timer state
     background(bgColor);
     stretchLen.hide();
     TimeA.hide();
@@ -385,6 +381,7 @@ void draw() { //----------------------------------------------------------------
     pause.show();
     restart.show();
 
+//keep track of seconds to adjust timer
     if (start==1 && millis()<endTime) {
       if (millis()>=nextSec&&isPaused==false) {
         nextSec=millis()+1000;
@@ -445,7 +442,7 @@ void draw() { //----------------------------------------------------------------
         serialPort.write(printthis);
         System.out.println(printthis);
       }
-      /*
+      /*  //old bumpy sine pattern
     if (sinWave == 1) {
        if (currentt <= timeA) {
        nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
@@ -513,7 +510,8 @@ void draw() { //----------------------------------------------------------------
 
       //sendData = 0;
     }
-    if (millis()>endTime) {
+    
+    if (millis()>endTime) {   //reseting some stuff when timer runs out
       //gotEndTime=0;
       state=0;
       endTime=999999999;
@@ -624,31 +622,14 @@ void controlEvent(ControlEvent theEvent) {
       isPaused=false;
       pauseFin=millis();
       endTime=endTime+(pauseFin-pauseStart);   //readjust endTime
-      pauseShift=pauseShift+(pauseFin-pauseStart);
-      nextSec=nextSec+pauseFin-pauseStart;
+      pauseShift+=(pauseFin-pauseStart);
+      nextSec+=pauseFin-pauseStart;
 
       restart.setColorBackground(#4B70FF); 
       pause.setColorBackground(#002b5c);
-      /*  FAILED ATTEMPT AT PAUSE RESTART FUNCTION
-       pauseShift=pauseShift+(long)(pauseFin-(Math.floor((pauseFin-startT)/cycleT)*cycleT))-(long)(pauseStart-(Math.floor((pauseStart-startT)/cycleT)*cycleT));
-       println("pauseStart: "+pauseStart);
-       println("pauseFin: "+pauseFin);
-       println("runT: "+runT);
-       println("startT: "+startT);
-       println("cycleT: "+cycleT);
-       println(": "+(pauseFin-startT)/cycleT);
-       println(": "+(pauseStart-startT)/cycleT);
-       
-       println("floor: "+Math.floor((pauseFin-startT)/cycleT));
-       println("floor: "+Math.floor((pauseStart-startT)/cycleT));
-       println(pauseFin-(Math.floor((pauseFin-startT)/cycleT)*cycleT));
-       println(pauseStart-(Math.floor((pauseStart-startT)/cycleT)*cycleT));
-       println("PauseShift: "+pauseShift);
-       //sleep(3000);
-       */
     }
 
-
+/*
     // Send Serial Commands to MMTK
     if (!mockupSerial) {
       if (parameter == "Start") {
@@ -661,9 +642,11 @@ void controlEvent(ControlEvent theEvent) {
         serialPort.write("Calibration\n");
       }
     }
+    */
   }
 }
-//}
+
+
 
 /* for seth - creating a new wave: procedure
  1. find function of desired pattern: x(t)=.... assign x=nextPosition, t=currentT
