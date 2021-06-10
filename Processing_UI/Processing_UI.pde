@@ -1,7 +1,8 @@
-
 import controlP5.*; // http://www.sojamo.de/libraries/controlP5/
 import processing.serial.*;
 import java.lang.Math.*;
+import java.util.*;
+
 
 
 PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
@@ -73,10 +74,10 @@ float[] correctionFactors = new float[2];
 float maxForce = 0;
 float maxDisplacment = 0;
 
-//steven's added variables
+//steven's added variables and stuff
 //Cp5 buttons, text etc.
-Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds;
-Button sine, square, run, cancel, pause, restart;
+Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
+Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings;
 Textlabel label;
 
 int state=0;
@@ -91,15 +92,24 @@ int secs;
 
 long pauseStart;  //millis() of start of pause
 long pauseFin;   //millis() of end of pause
-long pauseShift;   //sum of all paused durations, subtract from system millis() to restart pattern where it was paused  
+long pauseShift;   //sum of all paused durations, subtract from system millis() to resume pattern where it was paused  
 boolean isPaused=false;
 
+boolean hasError=false;
+LinkedList<String> errors = new LinkedList<String>(); 
+
+JSONObject userSettings;
+String topSketchPath="";
+int userNumber=0;
+boolean displayedUser=false;
+int numberOfUsers;
+int numberOfSettings;
 
 // Pattern image
 PImage wavePattern;
 
 //used for testing
-/*
+
 public static void sleep(int time) {
   try {
     Thread.sleep(time);
@@ -107,11 +117,14 @@ public static void sleep(int time) {
   catch (Exception e) {
   }
 }
-*/
 
 void setup() {
   size (1024, 600);  //window size
   serialPort = new Serial(this, "COM4", 115200);
+
+  topSketchPath=sketchPath();
+  userSettings=loadJSONObject(topSketchPath+"\\users.json");
+
   cycleT = (timeA + timeB + timeC + timeD);
 
   surface.setLocation(100, 100);
@@ -147,6 +160,7 @@ void setup() {
   //println(squareWave);
   //sleep(2000);
 
+
   stretchLen=cp5.addTextfield("stretch length (mm)")
     .setPosition(x=15, y+100)
     .setColorValue(color(0, 0, 0))
@@ -154,7 +168,7 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    .setText("20")
+    //.setText("20")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -166,7 +180,7 @@ void setup() {
     .setColorLabel(color(68, 114, 196))
     .setColorBackground(color(68, 114, 196))
     .setFont(createFont("Arial", 20))
-    .setText("5.0")
+    //.setText("5.0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -177,7 +191,7 @@ void setup() {
     .setColorLabel(color(237, 125, 49))
     .setColorBackground(color(237, 125, 49))
     .setFont(createFont("Arial", 20))
-    .setText("2.0")
+    //.setText("2.0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -188,7 +202,7 @@ void setup() {
     .setColorLabel(color(255, 192, 0))
     .setColorBackground(color(255, 192, 0))
     .setFont(createFont("Arial", 20))
-    .setText("5.0")
+    //.setText("5.0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -199,7 +213,7 @@ void setup() {
     .setColorLabel(color(112, 173, 71))
     .setColorBackground(color(112, 173, 71))
     .setFont(createFont("Arial", 20))
-    .setText("2.0")
+    // .setText("2.0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -210,7 +224,7 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    .setText("0")
+    //.setText("0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -221,7 +235,7 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    .setText("0")
+    //  .setText("0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -232,14 +246,14 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    .setText("25")
+    // .setText("25")
     .setSize(100, 50)
     .setAutoClear(false);
 
   run=cp5.addButton("Run")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(700, y=475)
+    .setPosition(750, y=475)
     .setSize(200, 75)
     .setColorBackground(#FA0000)
     .setColorForeground(#FF7C80);
@@ -258,11 +272,54 @@ void setup() {
     .setPosition(125, 450)
     .setSize(200, 75);
 
-  restart=cp5.addButton("restart")
+  resume=cp5.addButton("resume")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
     .setPosition(400, 450)
     .setSize(200, 75);
+
+  user1=cp5.addButton("user1")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 17))
+    .setPosition(x=120, y=100)
+    .setSize(200, 75);
+
+  user2=cp5.addButton("user2")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 17))
+    .setPosition(x+230, y)
+    .setSize(200, 75);
+
+  user3=cp5.addButton("user3")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 17))
+    .setPosition(x+460, y)
+    .setSize(200, 75);
+
+  user4=cp5.addButton("user4")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 17))
+    .setPosition(x+690, y)
+    .setSize(200, 75);
+
+  userName=cp5.addTextfield("User Name")
+    .setPosition(505, 10)
+    .setColorValue(color(0, 0, 0))
+    .setColorCursor(color(0, 0, 0))
+    .setColorLabel(color(0, 0, 0))
+    .setColorBackground(color(255, 255, 255))
+    .setFont(createFont("Arial", 20))
+    .setSize(500, 40)
+    .setAutoClear(false);
+
+  saveSettings=cp5.addButton("Save Settings")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(500, y=475)
+    .setSize(200, 75)
+    //.setColorBackground(#FA0000)
+    //.setColorForeground(#FF7C80)
+    ;
 
   textFont(createFont("Arial", 16, true));
 }
@@ -274,10 +331,10 @@ void draw() { //----------------------------------------------------------------
     print(incomingVal);
 
     if (incomingVal=='S') {  //S for start, from arduino
-      state=1; 
+      state=4;
     }
   }
-  
+
   if (state==0) {      //jog, tare, start state
     background(bgColor);
     stretchLen.hide();
@@ -293,13 +350,19 @@ void draw() { //----------------------------------------------------------------
     run.hide();
     cancel.hide();
     pause.hide();
-    restart.hide();
+    resume.hide();
     label.hide();
+    user1.hide();
+    user2.hide();
+    user3.hide();
+    user4.hide();
+    userName.hide();
+    saveSettings.hide();
 
-    restart.setColorBackground(#002b5c); 
+    resume.setColorBackground(#002b5c); 
     pause.setColorBackground(#002b5c);
-    sine.setColorBackground(#002b5c); 
-    square.setColorBackground(#002b5c);
+    //sine.setColorBackground(#002b5c); 
+    //square.setColorBackground(#002b5c);
 
     int nextP =0;   //moving back to initial position so sample can be removed
     float nextV = 200;
@@ -315,10 +378,14 @@ void draw() { //----------------------------------------------------------------
     text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
     text("3. Press TARE button to set initial position", 100, 350);
     text("4. Press START button to ready stretcher for pattern input", 100, 400);
-    
   } else if (state==1) {     //get user parameters state, transistion to running state via run button
     background(bgColor);
     textSize(16);
+
+    user1.hide();
+    user2.hide();
+    user3.hide();
+    user4.hide();
     stretchLen.show();
     TimeA.show();
     TimeB.show(); 
@@ -331,25 +398,43 @@ void draw() { //----------------------------------------------------------------
     square.show(); 
     run.show();
     label.show();
+    userName.show();
+    saveSettings.show();
+
+    if (displayedUser==false) {
+      userName.setText(userSettings.getString("name"+userNumber));
+      displayedUser=true;
+    }
     //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
-
-
+    /*
+    if (squareWave==1) {
+     square.setColorBackground(#4B70FF); 
+     sine.setColorBackground(#002b5c);
+     } else if (sinWave==1) {
+     sine.setColorBackground(#4B70FF); 
+     square.setColorBackground(#002b5c);
+     }
+     */
     // text("Wave Form: ", 600, 400);
 
     if (sinWave == 1) {
       // text("Sinusoid", 675, 400);
+      sine.setColorBackground(#4B70FF); 
+      square.setColorBackground(#002b5c);
       wavePattern = loadImage(//topSketchPath+
         "/images/SinPattern.jpg");
 
-      image(wavePattern, 505, 75, 500, 309);
+      image(wavePattern, 505, 90, 500, 309);
     }
 
     if (squareWave == 1) {
       //text("Square", 675, 400);
+      square.setColorBackground(#4B70FF); 
+      sine.setColorBackground(#002b5c);
       wavePattern = loadImage(//topSketchPath+
         "/images/SquarePattern.jpg");
 
-      image(wavePattern, 505, 75, 500, 309);
+      image(wavePattern, 505, 90, 500, 309);
     }
     textSize(30);
     text("Machine run time: ", 15, 450);
@@ -364,6 +449,9 @@ void draw() { //----------------------------------------------------------------
     //println(start);
     //sleep(2000);
   } else if (state==2) {    //running - displaying timer state
+    //sleep(100);   
+    displayedUser=false;
+    
     background(bgColor);
     stretchLen.hide();
     TimeA.hide();
@@ -379,9 +467,11 @@ void draw() { //----------------------------------------------------------------
     label.hide();
     cancel.show();
     pause.show();
-    restart.show();
+    resume.show();
+    userName.hide();
+    saveSettings.hide();
 
-//keep track of seconds to adjust timer
+    //keep track of seconds to adjust timer
     if (start==1 && millis()<endTime) {
       if (millis()>=nextSec&&isPaused==false) {
         nextSec=millis()+1000;
@@ -442,33 +532,7 @@ void draw() { //----------------------------------------------------------------
         serialPort.write(printthis);
         System.out.println(printthis);
       }
-      /*  //old bumpy sine pattern
-    if (sinWave == 1) {
-       if (currentt <= timeA) {
-       nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
-       float nextt = currentt + currentt - lastt;   //nextt for calculating velocity
-       //double nextVel0 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-       double nextVel2 = Math.max(60*Math.cos(currentt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 100);
-       nextVel1 = nextVel2;
-       } else if (currentt > timeA && currentt < (timeA + timeB)) {
-       nextPosition1 = stretchL;
-       nextVel1 = stretchL/timeA*60;
-       } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-       currentt = currentt - timeA - timeB;
-       nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-       nextVel1 = Math.max (Math.abs(60*Math.cos(currentt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 100);
-       } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-       nextPosition1 = 0;
-       nextVel1 = stretchL/timeC*60;
-       }
-       
-       int nextP = (int) nextPosition1;
-       float nextV = (float) nextVel1;
-       String printthis = "p" + nextP + "\nv" + nextV + "\n";
-       serialPort.write(printthis);
-       System.out.println(printthis);
-       }
-       */
+
       if (sinWave == 1&&isPaused==false) {
         if (currentt <= timeA/2) {
           float nextt = currentt + currentt - lastt;
@@ -510,13 +574,124 @@ void draw() { //----------------------------------------------------------------
 
       //sendData = 0;
     }
-    
+
     if (millis()>endTime) {   //reseting some stuff when timer runs out
       //gotEndTime=0;
       state=0;
       endTime=999999999;
       start=0;
+      isPaused=false;
     }
+  }
+
+  if (state==4) {     //user select state
+    background(bgColor);
+    stretchLen.hide();
+    TimeA.hide();
+    TimeB.hide(); 
+    TimeC.hide(); 
+    TimeD.hide(); 
+    Hours.hide(); 
+    Minutes.hide(); 
+    Seconds.hide();
+    sine.hide(); 
+    square.hide(); 
+    run.hide();
+    cancel.hide();
+    pause.hide();
+    resume.hide();
+    label.hide();
+
+    user1.setCaptionLabel(userSettings.getString("name0"));
+    user2.setCaptionLabel(userSettings.getString("name1"));
+    user3.setCaptionLabel(userSettings.getString("name2"));
+    user4.setCaptionLabel(userSettings.getString("name3"));
+
+    user1.show();
+    user2.show();
+    user3.show();
+    user4.show();
+
+    //fill(0, 0, 0);
+    textSize(40);
+    text("Select User", 400, 60);
+
+    int y;
+    textSize(25);
+    text("Wave: ", 12, y=215);
+
+    text("Length: ", 12, y=y+45);
+
+    text("Time A: ", 12, y=y+45);
+
+    text("Time B: ", 12, y=y+45);
+
+    text("Time C: ", 12, y=y+45);
+
+    text("Time D: ", 12, y=y+45);
+
+    text("Run Hrs: ", 12, y=y+45);
+
+    text("Run Mins: ", 12, y=y+45);
+
+    text("Run Secs: ", 12, y=y+45);
+
+
+    String[] settings= {"wavePattern", "stretchLength", "timeA", "timeB", "timeC", "timeD", "hours", "mins", "secs"};
+    int[] xPositions={200, 430, 660, 890};
+    
+    //print(userSettings.getString(settings[2]+str(0)));
+    
+    for (int i=0; i<4; i++) {   //cycles through user
+      y=170;
+      for (int j=0; j<9; j++) {   //cycles through all settings of one user
+        //user1 info
+        text(userSettings.getString(settings[j]+str(i)), xPositions[i], y=y+45);
+        //text(userSettings.getString(settings[2]+str(0)), 15,15);
+      }
+    }
+  }
+}
+void checkErrors() {
+  if (sinWave==0 && squareWave==0) {
+    hasError=true; 
+    errors.add("- Didn't select waveform");
+  }
+
+  if (stretchLen.getText().isEmpty()==true || 
+    TimeA.getText().isEmpty()==true||
+    TimeB.getText().isEmpty()==true||
+    TimeC.getText().isEmpty()==true|| 
+    TimeD.getText().isEmpty()==true||
+    Hours.getText().isEmpty()==true||
+    Minutes.getText().isEmpty()==true||
+    Seconds.getText().isEmpty()==true) {
+    errors.add("- Empty text field");
+  }
+
+  //if (stretchLen.matches("//d+")){
+
+  //}
+}
+
+void getUserSettings(int userNumber) {
+
+  Hours.setText(str(userSettings.getInt("hours"+userNumber)));
+  Minutes.setText(str(userSettings.getInt("mins"+userNumber)));
+  Seconds.setText(str(userSettings.getInt("secs"+userNumber)));
+  stretchLen.setText(str(userSettings.getInt("stretchLength"+userNumber)));
+  TimeA.setText(str(userSettings.getInt("timeA"+userNumber)));
+  TimeB.setText(str(userSettings.getInt("timeB"+userNumber)));
+  TimeC.setText(str(userSettings.getInt("timeC"+userNumber)));
+  TimeD.setText(str(userSettings.getInt("timeD"+userNumber)));
+
+  println(Minutes.getValue());
+  if (userSettings.getString("wavePattern"+userNumber).equals("sine")) {
+    sinWave=1; 
+    squareWave=0;
+  } else if (userSettings.getString("wavePattern"+userNumber).equals("square")) {
+    squareWave=1; 
+    sinWave=0;
   }
 }
 void controlEvent(ControlEvent theEvent) {
@@ -541,45 +716,22 @@ void controlEvent(ControlEvent theEvent) {
       mmtkVel = float(value);
       serialPort.write("V" + mmtkVel + "\n");
     }
-    /*
-    if (parameter == "stretch length (mm)") {
-     stretchL = float(stretchLen.getText())*1000;
-     }
-     
-     if (parameter == "time A") {
-     timeA = float(TimeA.getText())*1000;
-     }
-     
-     if (parameter == "time B") {
-     timeB = float(TimeB.getText())*1000;
-     }
-     
-     if (parameter == "time C") {
-     timeC = float(TimeC.getText())*1000;
-     }
-     
-     if (parameter == "time D") {
-     timeD = float(TimeD.getText())*1000;
-     }
-     
-     cycleT = (timeA + timeB + timeC + timeD);
-     */
+
     if (parameter == "Run") {
       //patternReady = 1;
       println("run pressed");
-      // sleep(1000);
       start=1;
       state=2;
-      //nextPosition=0;
-      //nextPosition1=0;
-      //nextVel=0;
-      //nextVel1=0;
+
+      checkErrors();
+
       startT=millis();
       // startT = millis();
       //if (gotEndTime==0) {
       hours=int(Hours.getText());
       mins=int(Minutes.getText());
       secs=int(Seconds.getText());
+      stretchL=float(stretchLen.getText())*1000;
 
       runTime=hours*1200 +mins*60 +secs;  //in seconds
       //println(runTime);
@@ -588,7 +740,6 @@ void controlEvent(ControlEvent theEvent) {
       nextSec=millis()+1000;
       // gotEndTime=1;
       //start=1;
-      //}
     }
 
     if (parameter == "Square") {
@@ -615,34 +766,74 @@ void controlEvent(ControlEvent theEvent) {
       isPaused=true;
       pauseStart=millis();
       pause.setColorBackground(#4B70FF); 
-      restart.setColorBackground(#002b5c);
+      resume.setColorBackground(#002b5c);
     }
 
-    if (parameter == "restart") {
+    if (parameter == "resume") {
       isPaused=false;
       pauseFin=millis();
       endTime=endTime+(pauseFin-pauseStart);   //readjust endTime
       pauseShift+=(pauseFin-pauseStart);
       nextSec+=pauseFin-pauseStart;
 
-      restart.setColorBackground(#4B70FF); 
+      resume.setColorBackground(#4B70FF); 
       pause.setColorBackground(#002b5c);
     }
 
-/*
-    // Send Serial Commands to MMTK
-    if (!mockupSerial) {
-      if (parameter == "Start") {
-        serialPort.write("Begin\n");
-      } else if (parameter == "Tare") {
-        serialPort.write("Tare\n");
-      } else if (parameter == "Stop") {
-        serialPort.write("Stop\n");
-      } else if (parameter == "5kg calibration") {
-        serialPort.write("Calibration\n");
-      }
+    if (parameter=="user1") {
+      userNumber=0;
+      getUserSettings(userNumber);
+      state=1;
     }
-    */
+    if (parameter=="user2") {
+      userNumber=1;
+      getUserSettings(userNumber);
+      state=1;
+    }
+    if (parameter=="user3") {
+      userNumber=2;
+      getUserSettings(userNumber);
+      state=1;
+    }
+    if (parameter=="user4") {
+      userNumber=3;
+      getUserSettings(userNumber);
+      state=1;
+    }
+
+    if (parameter=="Save Settings") {
+      userSettings.setString("name"+userNumber, userName.getText());
+      userSettings.setString("stretchLength"+userNumber, stretchLen.getText());
+      userSettings.setString("timeA"+userNumber, TimeA.getText());
+      userSettings.setString("timeB"+userNumber, TimeB.getText());
+      userSettings.setString("timeC"+userNumber, TimeC.getText());
+      userSettings.setString("timeD"+userNumber, TimeD.getText());
+      userSettings.setString("hours"+userNumber, Hours.getText());
+      userSettings.setString("mins"+userNumber, Minutes.getText());
+      userSettings.setString("secs"+userNumber, Seconds.getText());
+      if(sinWave==1){
+       userSettings.setString("wavePattern"+userNumber, "sine"); 
+      }else if(squareWave==1){
+       userSettings.setString("wavePattern"+userNumber, "sqaure"); 
+      }
+      // stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
+      saveJSONObject(userSettings, topSketchPath+"\\users.json");
+    }
+
+    /*
+    // Send Serial Commands to MMTK
+     if (!mockupSerial) {
+     if (parameter == "Start") {
+     serialPort.write("Begin\n");
+     } else if (parameter == "Tare") {
+     serialPort.write("Tare\n");
+     } else if (parameter == "Stop") {
+     serialPort.write("Stop\n");
+     } else if (parameter == "5kg calibration") {
+     serialPort.write("Calibration\n");
+     }
+     }
+     */
   }
 }
 
