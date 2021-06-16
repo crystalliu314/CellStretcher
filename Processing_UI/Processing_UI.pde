@@ -3,8 +3,6 @@ import processing.serial.*;
 import java.lang.Math.*;
 import java.util.*;
 
-
-
 PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
 
 // If you want to debug the plotter without using a real serial port set this to true
@@ -26,6 +24,10 @@ ControlP5 cp5;
 // ************************
 
 //int XYplotCurrentSize = 0;
+enum State {
+  tare, userProfile, getInput, running, returnInitPos
+};  //UI states
+State currentState=State.tare;
 
 int patternReady = 0;
 int squareWave = 0;
@@ -77,10 +79,10 @@ float maxDisplacment = 0;
 //steven's added variables and stuff
 //Cp5 buttons, text etc.
 Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
-Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings;
+Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings, loadUser, jogBak, jogFwd, tareButton, startButton, aux;
 Textlabel label;
 
-int state=0;
+//int state=0;
 int start=0;
 long runTime=0;  
 long endTime=999999999;
@@ -105,6 +107,11 @@ boolean displayedUser=false;
 int numberOfUsers;
 int numberOfSettings;
 
+long returnInitPosTime;
+int StateTransitionPause;
+
+boolean loadedUser=false;
+
 // Pattern image
 PImage wavePattern;
 
@@ -118,6 +125,7 @@ public static void sleep(int time) {
   }
 }
 
+//---------------------------------------------------------------------------------------------------------------
 void setup() {
   size (1024, 600);  //window size
   serialPort = new Serial(this, "COM4", 115200);
@@ -168,19 +176,19 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    //.setText("20")
+    .setText("20")
     .setSize(100, 50)
     .setAutoClear(false);
 
 
   TimeA=cp5.addTextfield("time A")
-    .setPosition(x, y = 300)
+    .setPosition(x, y = 285)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(68, 114, 196))
     .setColorBackground(color(68, 114, 196))
     .setFont(createFont("Arial", 20))
-    //.setText("5.0")
+    .setText("5")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -191,7 +199,7 @@ void setup() {
     .setColorLabel(color(237, 125, 49))
     .setColorBackground(color(237, 125, 49))
     .setFont(createFont("Arial", 20))
-    //.setText("2.0")
+    .setText("2")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -202,7 +210,7 @@ void setup() {
     .setColorLabel(color(255, 192, 0))
     .setColorBackground(color(255, 192, 0))
     .setFont(createFont("Arial", 20))
-    //.setText("5.0")
+    .setText("5")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -213,18 +221,18 @@ void setup() {
     .setColorLabel(color(112, 173, 71))
     .setColorBackground(color(112, 173, 71))
     .setFont(createFont("Arial", 20))
-    // .setText("2.0")
+    .setText("2")
     .setSize(100, 50)
     .setAutoClear(false);
 
   Hours=cp5.addTextfield("Hour")
-    .setPosition(x=15, y=475)
+    .setPosition(x=15, y=430)
     .setColorValue(color(0, 0, 0))
     .setColorCursor(color(0, 0, 0))
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    //.setText("0")
+    .setText("0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -235,7 +243,7 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    //  .setText("0")
+    .setText("0")
     .setSize(100, 50)
     .setAutoClear(false);
 
@@ -246,14 +254,20 @@ void setup() {
     .setColorLabel(color(0, 0, 0))
     .setColorBackground(color(255, 255, 255))
     .setFont(createFont("Arial", 20))
-    // .setText("25")
+    .setText("25")
     .setSize(100, 50)
     .setAutoClear(false);
+
+  loadUser=cp5.addButton("Load User")
+    .setPosition(x, y+90)
+    .setFont(createFont("Arial Black", 16))
+    // .setText("25")
+    .setSize(150, 60);
 
   run=cp5.addButton("Run")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(750, y=475)
+    .setPosition(750, y=500)
     .setSize(200, 75)
     .setColorBackground(#FA0000)
     .setColorForeground(#FF7C80);
@@ -315,349 +329,522 @@ void setup() {
   saveSettings=cp5.addButton("Save Settings")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(500, y=475)
+    .setPosition(500, y=500)
     .setSize(200, 75)
     //.setColorBackground(#FA0000)
     //.setColorForeground(#FF7C80)
     ;
+
+
+  aux=cp5.addButton("Aux")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+   // .setPosition(x+680, y)
+    .setPosition(x=37, y=500)
+    .setSize(150, 75);
+    
+  jogBak=cp5.addButton("Jog Back")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    //.setPosition(x=70, y=500)
+        .setPosition(x+200, y)
+    .setSize(150, 75);
+
+  jogFwd=cp5.addButton("Jog Fwd")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    //.setPosition(x+230, y)
+       .setPosition(x+400, y)
+    .setSize(150, 75);
+
+  tareButton=cp5.addButton("Tare")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x+600, y)
+    .setSize(150, 75);
+    
+   startButton=cp5.addButton("Start")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x+800, y)
+    .setSize(150, 75);
 
   textFont(createFont("Arial", 16, true));
 }
 
 void draw() { //----------------------------------------------------------------------------------------------------------------------------------------------- 
   if (serialPort.available()>0) {
-    char incomingVal=serialPort.readChar();
-    println();
-    print(incomingVal);
+    String myString = "";
 
-    if (incomingVal=='S') {  //S for start, from arduino
-      state=4;
+    try {
+      myString = serialPort.readStringUntil('\n');
+    }
+    catch (Exception e) {
+    }
+    if (myString == null) {
+      return;
+    }
+
+    if (myString.contains("TARE")) {
+      // This is a tare frame, empty the array and ignore it
+      // Also ignore the next line with indices
+      System.out.println("TARE");
+    } else {
+      // split the string at delimiter (space)
+      String[] tempData = split(myString, '\t');   
+
+      // build the arrays for bar charts and line graphs
+      if (tempData.length == 8) {
+        // This is a normal data frame
+        // SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE BT_FWD BT_BAK BT_TARE BT_START BT_AUX and a space
+
+        try {
+          velocity = Float.parseFloat(trim(tempData[0]));
+          position = Float.parseFloat(trim(tempData[1]));
+          MMTKState = Integer.parseInt(trim(tempData[2]));
+          eStop = Integer.parseInt(trim(tempData[3]));
+          stall = Integer.parseInt(trim(tempData[4]));
+          direction = Integer.parseInt(trim(tempData[5]));
+          inputVolts = Float.parseFloat(trim(tempData[6]));
+
+
+          //positionCorrected = position - (loadCell * correctionFactor[0] - loadCell * loadCell * correctionFactor[1]);
+        }
+        catch (NumberFormatException e) {
+          System.out.println(e);
+        }
+      }
+
+      if (currentState == State.tare) {
+        if (MMTKState == 0) {     //if mmtk is sending running state, transition to state 1
+          currentState = State.getInput ;
+        }
+      }
+
+      println(MMTKState);
+      //if (MMTKState == 0) {    
+      // sleep(1000);
+      // }
     }
   }
 
-  if (state==0) {      //jog, tare, start state
-    background(bgColor);
-    stretchLen.hide();
-    TimeA.hide();
-    TimeB.hide(); 
-    TimeC.hide(); 
-    TimeD.hide(); 
-    Hours.hide(); 
-    Minutes.hide(); 
-    Seconds.hide();
-    sine.hide(); 
-    square.hide(); 
-    run.hide();
-    cancel.hide();
-    pause.hide();
-    resume.hide();
-    label.hide();
-    user1.hide();
-    user2.hide();
-    user3.hide();
-    user4.hide();
-    userName.hide();
-    saveSettings.hide();
+  //states: tare, userProfile, getInput, running
+  switch (currentState) {
+  case tare:
+    {
+      background(bgColor);
+      stretchLen.hide();
+      TimeA.hide();
+      TimeB.hide(); 
+      TimeC.hide(); 
+      TimeD.hide(); 
+      Hours.hide(); 
+      Minutes.hide(); 
+      Seconds.hide();
+      sine.hide(); 
+      square.hide(); 
+      run.hide();
+      cancel.hide();
+      pause.hide();
+      resume.hide();
+      label.hide();
+      user1.hide();
+      user2.hide();
+      user3.hide();
+      user4.hide();
+      userName.hide();
+      saveSettings.hide();
+      loadUser.hide();
+      aux.show();
+      jogFwd.show();
+      jogBak.show();
+      tareButton.show();
+      startButton.show();
 
-    resume.setColorBackground(#002b5c); 
-    pause.setColorBackground(#002b5c);
-    //sine.setColorBackground(#002b5c); 
-    //square.setColorBackground(#002b5c);
+      resume.setColorBackground(#002b5c); 
+      pause.setColorBackground(#002b5c);
+      //sine.setColorBackground(#002b5c); 
+      //square.setColorBackground(#002b5c);
 
-    int nextP =0;   //moving back to initial position so sample can be removed
-    float nextV = 200;
-    String printthis = "p" + nextP + "\nv" + nextV + "\n";
-    serialPort.write(printthis);
-    System.out.println(printthis);
-
-    fill(0, 0, 0);
-    textSize(50);
-    text("Please Set Initial Position", 155, 135);
-    textSize(30);
-    text("1. Press AUX button until red LED disappears", 100, 250);
-    text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
-    text("3. Press TARE button to set initial position", 100, 350);
-    text("4. Press START button to ready stretcher for pattern input", 100, 400);
-  } else if (state==1) {     //get user parameters state, transistion to running state via run button
-    background(bgColor);
-    textSize(16);
-
-    user1.hide();
-    user2.hide();
-    user3.hide();
-    user4.hide();
-    stretchLen.show();
-    TimeA.show();
-    TimeB.show(); 
-    TimeC.show(); 
-    TimeD.show(); 
-    Hours.show(); 
-    Minutes.show(); 
-    Seconds.show();
-    sine.show(); 
-    square.show(); 
-    run.show();
-    label.show();
-    userName.show();
-    saveSettings.show();
-
-    if (displayedUser==false) {
-      userName.setText(userSettings.getString("name"+userNumber));
-      displayedUser=true;
+      fill(0, 0, 0);
+      textSize(50);
+      text("Please Set Initial Position", 155, 135);
+      textSize(30);
+      text("1. Press AUX button until red LED disappears", 100, 250);
+      text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
+      text("3. Press TARE button to set initial position", 100, 350);
+      text("4. Press START button to ready stretcher for pattern input", 100, 400);
+      break;
     }
-    //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
-    /*
+  case userProfile:
+    {
+      background(bgColor);
+      stretchLen.hide();
+      TimeA.hide();
+      TimeB.hide(); 
+      TimeC.hide(); 
+      TimeD.hide(); 
+      Hours.hide(); 
+      Minutes.hide(); 
+      Seconds.hide();
+      sine.hide(); 
+      square.hide(); 
+      run.hide();
+      cancel.hide();
+      pause.hide();
+      resume.hide();
+      label.hide();
+      loadUser.hide();
+      userName.hide();
+      saveSettings.hide();     
+
+      user1.setCaptionLabel(userSettings.getString("name0"));
+      user2.setCaptionLabel(userSettings.getString("name1"));
+      user3.setCaptionLabel(userSettings.getString("name2"));
+      user4.setCaptionLabel(userSettings.getString("name3"));
+
+      user1.show();
+      user2.show();
+      user3.show();
+      user4.show();
+
+      //fill(0, 0, 0);
+      textSize(40);
+      text("Select User", 400, 60);
+
+      int y;
+      textSize(25);
+      text("Wave: ", 12, y=215);
+      text("Length: ", 12, y=y+45);
+      text("Time A: ", 12, y=y+45);
+      text("Time B: ", 12, y=y+45);
+      text("Time C: ", 12, y=y+45);
+      text("Time D: ", 12, y=y+45);
+      text("Run Hrs: ", 12, y=y+45);
+      text("Run Mins: ", 12, y=y+45);
+      text("Run Secs: ", 12, y=y+45);
+
+      String[] settings= {"wavePattern", "stretchLength", "timeA", "timeB", "timeC", "timeD", "hours", "mins", "secs"};
+      int[] xPositions={200, 430, 660, 890};
+
+      //print(userSettings.getString(settings[2]+str(0)));
+
+      for (int i=0; i<4; i++) {   //cycles through user
+        y=170;
+        for (int j=0; j<9; j++) {   //cycles through all settings of one user
+          //user1 info
+          text(userSettings.getString(settings[j]+str(i)), xPositions[i], y=y+45);
+          //text(userSettings.getString(settings[2]+str(0)), 15,15);
+        }
+      }
+      break;
+    }
+  case getInput:
+    {
+      background(bgColor);
+      textSize(16);
+
+      user1.hide();
+      user2.hide();
+      user3.hide();
+      user4.hide();
+      stretchLen.show();
+      TimeA.show();
+      TimeB.show(); 
+      TimeC.show(); 
+      TimeD.show(); 
+      Hours.show(); 
+      Minutes.show(); 
+      Seconds.show();
+      sine.show(); 
+      square.show(); 
+      run.show();
+      label.show();
+      loadUser.show();
+      aux.hide();
+      jogFwd.hide();
+      jogBak.hide();
+      tareButton.hide();
+      startButton.hide();
+
+      if (loadedUser==true) {
+        saveSettings.show();
+        userName.show();
+        if (displayedUser==false) {
+          userName.setText(userSettings.getString("name"+userNumber));
+          displayedUser=true;
+        }
+      }
+      //text("Current Speed: " + String.format("%.02f", mmtkVel) + " mm/min", 125, 70);
+      /*
     if (squareWave==1) {
-     square.setColorBackground(#4B70FF); 
-     sine.setColorBackground(#002b5c);
-     } else if (sinWave==1) {
-     sine.setColorBackground(#4B70FF); 
-     square.setColorBackground(#002b5c);
-     }
-     */
-    // text("Wave Form: ", 600, 400);
+       square.setColorBackground(#4B70FF); 
+       sine.setColorBackground(#002b5c);
+       } else if (sinWave==1) {
+       sine.setColorBackground(#4B70FF); 
+       square.setColorBackground(#002b5c);
+       }
+       */
+      // text("Wave Form: ", 600, 400);
 
-    if (sinWave == 1) {
-      // text("Sinusoid", 675, 400);
-      sine.setColorBackground(#4B70FF); 
-      square.setColorBackground(#002b5c);
-      wavePattern = loadImage(//topSketchPath+
-        "/images/SinPattern.jpg");
+      if (sinWave == 1) {
+        // text("Sinusoid", 675, 400);
+        sine.setColorBackground(#4B70FF); 
+        square.setColorBackground(#002b5c);
+        wavePattern = loadImage(//topSketchPath+
+          "/images/SinPattern.jpg");
 
-      image(wavePattern, 505, 90, 500, 309);
-    }
-
-    if (squareWave == 1) {
-      //text("Square", 675, 400);
-      square.setColorBackground(#4B70FF); 
-      sine.setColorBackground(#002b5c);
-      wavePattern = loadImage(//topSketchPath+
-        "/images/SquarePattern.jpg");
-
-      image(wavePattern, 505, 90, 500, 309);
-    }
-    textSize(30);
-    text("Machine run time: ", 15, 450);
-
-    stretchL = float(stretchLen.getText())*1000;
-    timeA = float(TimeA.getText())*1000;
-    timeB = float(TimeB.getText())*1000;
-    timeC = float(TimeC.getText())*1000;
-    timeD = float(TimeD.getText())*1000;
-    cycleT = (timeA + timeB + timeC + timeD);
-
-    //println(start);
-    //sleep(2000);
-  } else if (state==2) {    //running - displaying timer state
-    //sleep(100);   
-    displayedUser=false;
-    
-    background(bgColor);
-    stretchLen.hide();
-    TimeA.hide();
-    TimeB.hide(); 
-    TimeC.hide(); 
-    TimeD.hide(); 
-    Hours.hide(); 
-    Minutes.hide(); 
-    Seconds.hide();
-    sine.hide(); 
-    square.hide(); 
-    run.hide();
-    label.hide();
-    cancel.show();
-    pause.show();
-    resume.show();
-    userName.hide();
-    saveSettings.hide();
-
-    //keep track of seconds to adjust timer
-    if (start==1 && millis()<endTime) {
-      if (millis()>=nextSec&&isPaused==false) {
-        nextSec=millis()+1000;
-
-        secs--;
-        if (secs<0) {
-          mins--;
-          secs=59;
-        }
-
-        if (mins<0) {
-          hours--;
-          mins=59;
-        }  
-        //text(tempCounter, 100,100);
-        //tempCounter++;
+        image(wavePattern, 505, 90, 500, 309);
       }
 
-      //displaying timer 
-      fill(0, 0, 0);
-      textSize(55);
-      text(hours+":", 275, 250);
+      if (squareWave == 1) {
+        //text("Square", 675, 400);
+        square.setColorBackground(#4B70FF); 
+        sine.setColorBackground(#002b5c);
+        wavePattern = loadImage(//topSketchPath+
+          "/images/SquarePattern.jpg");
 
-      fill(0, 0, 0);
-      textSize(55);
-      text(mins+":", 375, 250);
+        image(wavePattern, 505, 90, 500, 309);
+      }
+      textSize(30);
+      fill(0, 0, 0); 
+      text("Machine run time: ", 15, 410);
 
-      fill(0, 0, 0);
-      textSize(55);
-      text(secs, 475, 250);
-      //nextSec=nextSec+1000;
+      stretchL = float(stretchLen.getText())*1000;
+      timeA = float(TimeA.getText())*1000;
+      timeB = float(TimeB.getText())*1000;
+      timeC = float(TimeC.getText())*1000;
+      timeD = float(TimeD.getText())*1000;
+      cycleT = (timeA + timeB + timeC + timeD);
 
-      lastt = currentt;
-      currentT = millis()-(int)pauseShift;
-      runT = (currentT - startT);   //time now to start
-      roundN = Math.floor(runT/cycleT);   //which "round" of wave length are we on?
-      cycleN = (int) roundN;
-      currentt = (float) (runT - cycleN*cycleT);   //converts running time to limited domain loop (0 and runT)
-
-      if (squareWave == 1&&isPaused==false) {
-        if (currentt <= timeA) {
-
-          //EXAMPLE------------------------------------
-          nextPosition = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
-          nextVel = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
-          //_________________________________________
-        } else if (currentt > timeA && currentt < (timeA + timeB)) {
-          nextPosition = stretchL;
-        } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
-          nextPosition = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
-          nextVel = stretchL/timeC*60;
-        } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-          nextPosition = 0;
+      checkErrors();
+      if (hasError==true) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        for (int i=0; i<errors.size(); i++) {
+          text(errors.get(i), 500, 425+(25*i));
         }
-        int nextP = (int) nextPosition;   //passing through serial port
-        float nextV = (float) nextVel;
-        String printthis = "p" + nextP + "\nv" + nextV + "\n";
-        serialPort.write(printthis);
-        System.out.println(printthis);
+        //transition back to user user parameter state
       }
 
-      if (sinWave == 1&&isPaused==false) {
-        if (currentt <= timeA/2) {
-          float nextt = currentt + currentt - lastt;
-          nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
-          nextVel1 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-        }
-        if (currentt > timeA/2 && currentt <= timeA) {
-          nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
-          nextVel1 = Math.max(60*Math.cos(lastt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
-        } else if (currentt > timeA && currentt < (timeA + timeB)) {
-          nextPosition1 = stretchL;
-          nextVel1 = stretchL/timeA*60;
-        } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC/2)) {
-          currentt = currentt - timeA - timeB;
-          float nextt = currentt + currentt - lastt;
-          nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-          nextVel1 = Math.max (Math.abs(60*Math.cos(nextt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
-        } else if (currentt >= (timeA+timeB+timeC/2) && currentt <= (timeA+timeB+timeC)) {
-          currentt = currentt - timeA - timeB;
-          nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
-          nextVel1 = Math.max (Math.abs(60*Math.cos(lastt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
-        } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
-          nextPosition1 = 0;
-          nextVel1 = stretchL/timeC*60;
+      //println(start);
+      //sleep(2000);
+      break;
+    }
+  case running:
+    {
+      //sleep(100);   
+      displayedUser=false;
+
+      background(bgColor);
+      stretchLen.hide();
+      TimeA.hide();
+      TimeB.hide(); 
+      TimeC.hide(); 
+      TimeD.hide(); 
+      Hours.hide(); 
+      Minutes.hide(); 
+      Seconds.hide();
+      sine.hide(); 
+      square.hide(); 
+      run.hide();
+      label.hide();
+      cancel.show();
+      pause.show();
+      resume.show();
+      userName.hide();
+      saveSettings.hide();
+      loadUser.hide();
+
+      //keep track of seconds to adjust timer
+      if (start==1 && millis()<endTime) {
+        if (millis()>=nextSec&&isPaused==false) {
+          nextSec=millis()+1000;
+
+          secs--;
+          if (secs<0) {
+            mins--;
+            secs=59;
+          }
+
+          if (mins<0) {
+            hours--;
+            mins=59;
+          }  
+          //text(tempCounter, 100,100);
+          //tempCounter++;
         }
 
+        //displaying timer 
+        fill(0, 0, 0);
+        textSize(55);
+        text(hours+":", 275, 250);
 
+        fill(0, 0, 0);
+        textSize(55);
+        text(mins+":", 375, 250);
+
+        fill(0, 0, 0);
+        textSize(55);
+        text(secs, 475, 250);
+        //nextSec=nextSec+1000;
+
+        lastt = currentt;
+        currentT = millis()-(int)pauseShift;
+        runT = (currentT - startT);   //time now to start
+        roundN = Math.floor(runT/cycleT);   //which "round" of wave length are we on?
+        cycleN = (int) roundN;
+        currentt = (float) (runT - cycleN*cycleT);   //converts running time to limited domain loop (0 and runT)
+
+        if (squareWave == 1&&isPaused==false) {
+          if (currentt <= timeA) {
+
+            //EXAMPLE------------------------------------
+            nextPosition1 = currentt/timeA * stretchL;  //nextPosition = x, x is a function of t(currentT)
+            nextVel1 = stretchL/timeA*60;  //v(t)=x'(t), in this case V is independent of t(current T)
+            //_________________________________________
+          } else if (currentt > timeA && currentt < (timeA + timeB)) {
+            nextPosition1 = stretchL;
+          } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC)) {
+            nextPosition1 = stretchL - (currentt - timeA - timeB)/timeC * stretchL;
+            nextVel1 = stretchL/timeC*60;
+          } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+            nextPosition1 = 0;
+          }
+        }
+
+        if (sinWave == 1&&isPaused==false) {
+          if (currentt <= timeA/2) {
+            float nextt = currentt + currentt - lastt;
+            nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max(60*Math.cos(nextt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+          }
+          if (currentt > timeA/2 && currentt <= timeA) {
+            nextPosition1 = (Math.sin(currentt/timeA * Math.PI-Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max(60*Math.cos(lastt/timeA * Math.PI - Math.PI/2)*Math.PI*stretchL/(2*timeA), 10);
+          } else if (currentt > timeA && currentt < (timeA + timeB)) {
+            nextPosition1 = stretchL;
+            nextVel1 = stretchL/timeA*60;
+          } else if (currentt >= (timeA+timeB) && currentt <= (timeA+timeB+timeC/2)) {
+            currentt = currentt - timeA - timeB;
+            float nextt = currentt + currentt - lastt;
+            nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max (Math.abs(60*Math.cos(nextt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+          } else if (currentt >= (timeA+timeB+timeC/2) && currentt <= (timeA+timeB+timeC)) {
+            currentt = currentt - timeA - timeB;
+            nextPosition1 = (Math.sin(currentt/timeC * Math.PI+Math.PI*0.5)+1)*0.5*stretchL;
+            nextVel1 = Math.max (Math.abs(60*Math.cos(lastt/timeC * Math.PI + Math.PI*0.5)*Math.PI*stretchL/(2*timeC)), 10);
+          } else if (currentt > (timeA+timeB+timeC) && currentt < (timeA+timeB+timeC+timeD)) {
+            nextPosition1 = 0;
+            nextVel1 = stretchL/timeC*60;
+          }
+        }
+      }
+
+      if (millis()<endTime) {
         int nextP = (int) nextPosition1;
         float nextV = (float) nextVel1;
         String printthis = "p" + nextP + "\nv" + nextV + "\n";
         serialPort.write(printthis);
         System.out.println(printthis);
+      } else {   //reseting some stuff when timer runs out
+        //gotEndTime=0;
+        currentState=State.returnInitPos;
+        //serialPort.write("S");  //telling arduino to return to stop state
+        endTime=999999999;
+        start=0;
+        isPaused=false;
+        //serialPort.write("S");  //telling arduino to return to stop state
+        //returnInitPosTime=millis()+4000;
+        returnInitPosTime=(int)Math.ceil(millis()+(Math.abs(nextPosition1))/5);
+        //println("nextPos: "+nextPosition1);
+        //println("stop time millis "+Math.ceil(millis()+(Math.abs(nextPosition1))/5));
+        //println("pause time "+(Math.abs(nextPosition1))/5);
       }
 
-      //System.out.println(currentT);
-
-      sendData = 0;
-      //System.out.println(currentT);
-
-      //sendData = 0;
+      break;
     }
+  case returnInitPos:
+    {
+      background(bgColor);
+      stretchLen.hide();
+      TimeA.hide();
+      TimeB.hide(); 
+      TimeC.hide(); 
+      TimeD.hide(); 
+      Hours.hide(); 
+      Minutes.hide(); 
+      Seconds.hide();
+      sine.hide(); 
+      square.hide(); 
+      run.hide();
+      cancel.hide();
+      pause.hide();
+      resume.hide();
+      label.hide();
+      user1.hide();
+      user2.hide();
+      user3.hide();
+      user4.hide();
+      userName.hide();
+      saveSettings.hide();
 
-    if (millis()>endTime) {   //reseting some stuff when timer runs out
-      //gotEndTime=0;
-      state=0;
-      endTime=999999999;
-      start=0;
-      isPaused=false;
-    }
-  }
+      fill(0, 0, 0);
+      textSize(55);
+      text("Please Wait", 275, 250);
 
-  if (state==4) {     //user select state
-    background(bgColor);
-    stretchLen.hide();
-    TimeA.hide();
-    TimeB.hide(); 
-    TimeC.hide(); 
-    TimeD.hide(); 
-    Hours.hide(); 
-    Minutes.hide(); 
-    Seconds.hide();
-    sine.hide(); 
-    square.hide(); 
-    run.hide();
-    cancel.hide();
-    pause.hide();
-    resume.hide();
-    label.hide();
-
-    user1.setCaptionLabel(userSettings.getString("name0"));
-    user2.setCaptionLabel(userSettings.getString("name1"));
-    user3.setCaptionLabel(userSettings.getString("name2"));
-    user4.setCaptionLabel(userSettings.getString("name3"));
-
-    user1.show();
-    user2.show();
-    user3.show();
-    user4.show();
-
-    //fill(0, 0, 0);
-    textSize(40);
-    text("Select User", 400, 60);
-
-    int y;
-    textSize(25);
-    text("Wave: ", 12, y=215);
-
-    text("Length: ", 12, y=y+45);
-
-    text("Time A: ", 12, y=y+45);
-
-    text("Time B: ", 12, y=y+45);
-
-    text("Time C: ", 12, y=y+45);
-
-    text("Time D: ", 12, y=y+45);
-
-    text("Run Hrs: ", 12, y=y+45);
-
-    text("Run Mins: ", 12, y=y+45);
-
-    text("Run Secs: ", 12, y=y+45);
-
-
-    String[] settings= {"wavePattern", "stretchLength", "timeA", "timeB", "timeC", "timeD", "hours", "mins", "secs"};
-    int[] xPositions={200, 430, 660, 890};
-    
-    //print(userSettings.getString(settings[2]+str(0)));
-    
-    for (int i=0; i<4; i++) {   //cycles through user
-      y=170;
-      for (int j=0; j<9; j++) {   //cycles through all settings of one user
-        //user1 info
-        text(userSettings.getString(settings[j]+str(i)), xPositions[i], y=y+45);
-        //text(userSettings.getString(settings[2]+str(0)), 15,15);
+      nextPosition1=0;  //making sure last run's 'nextPosition1' value gets reset
+      if (millis()<returnInitPosTime) {
+        int nextP =0;   //moving back to initial position so sample can be removed
+        float nextV = 500;
+        String printthis = "p" + nextP + "\nv" + nextV + "\n";
+        serialPort.write(printthis);
+        System.out.println(printthis);
+        StateTransitionPause=millis()+200;
+      } else {
+        //print(pauseTime);
+        //sleep(4000);
+        serialPort.write("S");
+        if (millis()>StateTransitionPause) {   //making sure arduino has time to change state before processing
+          currentState=State.tare;
+        }
       }
+      break;
     }
   }
 }
+
+boolean onlyDigits(String str, int n)
+{
+  boolean onlyDigits=true;
+
+  if (n==0) {
+    return true;
+  } else {
+    for (int i=0; i<n; i++) {
+      // Check if character is
+      // digit from 0-9
+      // then return true
+      // else false
+      if (!(str.charAt(i) >= '0' && str.charAt(i) <= '9' || str.charAt(i)=='.')) {   //if character is not between 0 and 9 or not equal to .
+        onlyDigits=false;
+        //} else {
+        //onlyDigits= false;
+        //}
+      }
+    }
+    return onlyDigits;
+  }
+}
+
+
 void checkErrors() {
+  hasError=false;
+  errors.clear();
   if (sinWave==0 && squareWave==0) {
     hasError=true; 
-    errors.add("- Didn't select waveform");
+    errors.add("ERROR: Missing waveform");
   }
-
   if (stretchLen.getText().isEmpty()==true || 
     TimeA.getText().isEmpty()==true||
     TimeB.getText().isEmpty()==true||
@@ -666,7 +853,19 @@ void checkErrors() {
     Hours.getText().isEmpty()==true||
     Minutes.getText().isEmpty()==true||
     Seconds.getText().isEmpty()==true) {
-    errors.add("- Empty text field");
+    hasError=true; 
+    errors.add("ERROR: Empty text field(s)");
+  } 
+  if (onlyDigits(stretchLen.getText(), stretchLen.getText().length())==false||
+    onlyDigits(TimeA.getText(), TimeA.getText().length())==false||
+    onlyDigits(TimeB.getText(), TimeB.getText().length())==false||
+    onlyDigits(TimeC.getText(), TimeC.getText().length())==false||
+    onlyDigits(TimeD.getText(), TimeD.getText().length())==false||
+    onlyDigits(Hours.getText(), Hours.getText().length())==false||
+    onlyDigits(Minutes.getText(), Minutes.getText().length())==false||
+    onlyDigits(Seconds.getText(), Seconds.getText().length())==false) {
+    hasError=true; 
+    errors.add("ERROR: Input(s) contain characters");
   }
 
   //if (stretchLen.matches("//d+")){
@@ -694,6 +893,7 @@ void getUserSettings(int userNumber) {
     sinWave=0;
   }
 }
+
 void controlEvent(ControlEvent theEvent) {
   if (theEvent.isController()) {
     String parameter=theEvent.getController().getName();
@@ -720,26 +920,27 @@ void controlEvent(ControlEvent theEvent) {
     if (parameter == "Run") {
       //patternReady = 1;
       println("run pressed");
-      start=1;
-      state=2;
 
-      checkErrors();
+      if (hasError==false) {
+        start=1;
+        currentState=State.running;
+        loadedUser=false;
+        startT=millis();
+        // startT = millis();
+        //if (gotEndTime==0) {
+        hours=int(Hours.getText());
+        mins=int(Minutes.getText());
+        secs=int(Seconds.getText());
+        stretchL=float(stretchLen.getText())*1000;
 
-      startT=millis();
-      // startT = millis();
-      //if (gotEndTime==0) {
-      hours=int(Hours.getText());
-      mins=int(Minutes.getText());
-      secs=int(Seconds.getText());
-      stretchL=float(stretchLen.getText())*1000;
-
-      runTime=hours*1200 +mins*60 +secs;  //in seconds
-      //println(runTime);
-      endTime=millis()+runTime*1000;
-      //println(endTime);
-      nextSec=millis()+1000;
-      // gotEndTime=1;
-      //start=1;
+        runTime=hours*1200 +mins*60 +secs;  //in seconds
+        //println(runTime);
+        endTime=millis()+runTime*1000;
+        //println(endTime);
+        nextSec=millis()+1000;
+        // gotEndTime=1;
+        //start=1;
+      }
     }
 
     if (parameter == "Square") {
@@ -757,9 +958,13 @@ void controlEvent(ControlEvent theEvent) {
     }
 
     if (parameter == "Cancel") {
-      state=0;
+      //serialPort.write("S");  //telling arduino to return to stop state
+      currentState=State.returnInitPos;
       endTime=999999999;
       start=0;
+      returnInitPosTime=(int)Math.ceil(millis()+(Math.abs(nextPosition1))/5);
+      //sleep(1000);
+      // println("stop");
     }
 
     if (parameter == "pause") {
@@ -783,22 +988,22 @@ void controlEvent(ControlEvent theEvent) {
     if (parameter=="user1") {
       userNumber=0;
       getUserSettings(userNumber);
-      state=1;
+      currentState=State.getInput;
     }
     if (parameter=="user2") {
       userNumber=1;
       getUserSettings(userNumber);
-      state=1;
+      currentState=State.getInput;
     }
     if (parameter=="user3") {
       userNumber=2;
       getUserSettings(userNumber);
-      state=1;
+      currentState=State.getInput;
     }
     if (parameter=="user4") {
       userNumber=3;
       getUserSettings(userNumber);
-      state=1;
+      currentState=State.getInput;
     }
 
     if (parameter=="Save Settings") {
@@ -811,15 +1016,38 @@ void controlEvent(ControlEvent theEvent) {
       userSettings.setString("hours"+userNumber, Hours.getText());
       userSettings.setString("mins"+userNumber, Minutes.getText());
       userSettings.setString("secs"+userNumber, Seconds.getText());
-      if(sinWave==1){
-       userSettings.setString("wavePattern"+userNumber, "sine"); 
-      }else if(squareWave==1){
-       userSettings.setString("wavePattern"+userNumber, "sqaure"); 
+      if (sinWave==1) {
+        userSettings.setString("wavePattern"+userNumber, "sine");
+      } else if (squareWave==1) {
+        userSettings.setString("wavePattern"+userNumber, "square");
       }
       // stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
       saveJSONObject(userSettings, topSketchPath+"\\users.json");
     }
 
+    if (parameter=="Load User") {
+      loadedUser=true;
+      displayedUser=false;
+      currentState=State.userProfile;
+    }
+    
+    
+    if(parameter=="Aux"){
+      
+    }
+    if(parameter=="Jog Back"){
+      
+    }
+    if(parameter=="Jog Fwd"){
+      
+    }
+    if(parameter=="Tare"){
+      
+    }
+    if(parameter=="Start"){
+      
+    }
+    
     /*
     // Send Serial Commands to MMTK
      if (!mockupSerial) {
