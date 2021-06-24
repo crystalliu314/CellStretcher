@@ -65,6 +65,10 @@ int eStop = 0;
 int stall = 0;
 int direction = 0;
 float inputVolts = 12.0;
+int isTared=0;
+int isTaredTemp=0;
+int isAuxTemp=0;
+int isAux=0;
 
 int btBak = 0;
 int btFwd = 0;
@@ -79,8 +83,8 @@ float maxDisplacment = 0;
 //steven's added variables and stuff
 //Cp5 buttons, text etc.
 Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
-Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings, loadUser, jogBak, jogFwd, tareButton, startButton, aux;
-Textlabel label;
+Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings, loadUser, jogBak, jogFwd, tareButton, startButton, aux, userBack;
+Textlabel controlPanelLabel, hourLabel, minLabel, secLabel;
 
 //int state=0;
 int start=0;
@@ -111,6 +115,13 @@ long returnInitPosTime;
 int StateTransitionPause;
 
 boolean loadedUser=false;
+
+boolean jogButtonPressed=false;
+
+int displayAuxError=0;
+int displayTareError=0;
+
+int clearedRunningBackground=0;
 
 // Pattern image
 PImage wavePattern;
@@ -146,7 +157,7 @@ void setup() {
 
   fill(0, 0, 0);
 
-  label=cp5.addTextlabel("label")
+  controlPanelLabel=cp5.addTextlabel("label")
     .setText("Cell Stretcher Control Panel")
     .setPosition(x=15, y=7)
     .setColorValue(color(0, 0, 0))
@@ -275,7 +286,7 @@ void setup() {
   cancel=cp5.addButton("Cancel")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(675, 450)
+    .setPosition(675, 500)
     .setSize(200, 75)
     .setColorBackground(#FA0000)
     .setColorForeground(#FF7C80);
@@ -283,13 +294,13 @@ void setup() {
   pause=cp5.addButton("pause")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(125, 450)
+    .setPosition(125, 500)
     .setSize(200, 75);
 
   resume=cp5.addButton("resume")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-    .setPosition(400, 450)
+    .setPosition(400, 500)
     .setSize(200, 75);
 
   user1=cp5.addButton("user1")
@@ -339,22 +350,22 @@ void setup() {
   aux=cp5.addButton("Aux")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
-   // .setPosition(x+680, y)
+    // .setPosition(x+680, y)
     .setPosition(x=37, y=500)
     .setSize(150, 75);
-    
+
   jogBak=cp5.addButton("Jog Back")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
     //.setPosition(x=70, y=500)
-        .setPosition(x+200, y)
+    .setPosition(x+200, y)
     .setSize(150, 75);
 
   jogFwd=cp5.addButton("Jog Fwd")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
     //.setPosition(x+230, y)
-       .setPosition(x+400, y)
+    .setPosition(x+400, y)
     .setSize(150, 75);
 
   tareButton=cp5.addButton("Tare")
@@ -362,14 +373,108 @@ void setup() {
     .setFont(createFont("Arial Black", 20))
     .setPosition(x+600, y)
     .setSize(150, 75);
-    
-   startButton=cp5.addButton("Start")
+
+  startButton=cp5.addButton("Ready")
     //.setValue(1)
     .setFont(createFont("Arial Black", 20))
     .setPosition(x+800, y)
     .setSize(150, 75);
 
+  userBack=cp5.addButton("Back")
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(20, 20)
+    .setSize(125, 50);
+
+  hourLabel=cp5.addTextlabel("Hour Label")
+    //.setText("Cell Stretcher Control Panel")
+    .setPosition(275, 400)
+    .setColorValue(color(0, 0, 0))
+    .setFont(createFont("Arial Bold", 35));
+
+  minLabel=cp5.addTextlabel("Minutes Label")
+    //.setText("Cell Stretcher Control Panel")
+    .setPosition(375, 400)
+    .setColorValue(color(0, 0, 0))
+    .setFont(createFont("Arial Bold", 35));
+
+  secLabel=cp5.addTextlabel("Seconds Label")
+    //.setText("Cell Stretcher Control Panel")
+    .setPosition(475, 400)
+    .setColorValue(color(0, 0, 0))
+    .setFont(createFont("Arial Bold", 35));
+  /*
+       fill(0, 0, 0);
+   textSize(55);
+   text(hours+":", 275, 250);
+   
+   fill(0, 0, 0);
+   textSize(55);
+   text(mins+":", 375, 250);
+   
+   fill(0, 0, 0);
+   textSize(55);
+   text(secs, 475, 250);
+   */
+
   textFont(createFont("Arial", 16, true));
+
+
+  //holding jog buttons
+
+  jogBak.addCallback(new CallbackListener() {
+    public void controlEvent(CallbackEvent theEvent) {
+
+      switch(theEvent.getAction()) {
+        case(ControlP5.ACTION_PRESSED): 
+
+        if (isAux==1&&isTared==0) {
+          println("JogBack"); 
+          serialPort.write("L");
+          jogButtonPressed=true;
+        } else if (isAux==0) {
+          displayAuxError=1;
+        }
+        break;
+
+        case(ControlP5.ACTION_RELEASED): 
+        if (isAux==1&&isTared==0) {
+          println("stop"); 
+          serialPort.write("l");
+          jogButtonPressed=false;
+        } 
+        break;
+      }
+    }
+  }
+
+  );
+
+  jogFwd.addCallback(new CallbackListener() {
+    public void controlEvent(CallbackEvent theEvent) {
+
+      switch(theEvent.getAction()) {
+        case(ControlP5.ACTION_PRESSED): 
+        if (isAux==1&&isTared==0) {
+          println("jogFwd");
+          serialPort.write("F");
+          jogButtonPressed=true;
+        } else if (isAux==0) {
+          displayAuxError=1;
+        }
+        break;
+
+        case(ControlP5.ACTION_RELEASED): 
+        if (isAux==1&&isTared==0) {
+          println("stop"); 
+          serialPort.write("f");
+          jogButtonPressed=false;
+        }
+        break;
+      }
+    }
+  }
+
+  );
 }
 
 void draw() { //----------------------------------------------------------------------------------------------------------------------------------------------- 
@@ -394,7 +499,7 @@ void draw() { //----------------------------------------------------------------
       String[] tempData = split(myString, '\t');   
 
       // build the arrays for bar charts and line graphs
-      if (tempData.length == 8) {
+      if (tempData.length ==10) {
         // This is a normal data frame
         // SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE BT_FWD BT_BAK BT_TARE BT_START BT_AUX and a space
 
@@ -406,6 +511,8 @@ void draw() { //----------------------------------------------------------------
           stall = Integer.parseInt(trim(tempData[4]));
           direction = Integer.parseInt(trim(tempData[5]));
           inputVolts = Float.parseFloat(trim(tempData[6]));
+          isTaredTemp = Integer.parseInt(trim(tempData[7]));
+          isAuxTemp = Integer.parseInt(trim(tempData[8]));
 
 
           //positionCorrected = position - (loadCell * correctionFactor[0] - loadCell * loadCell * correctionFactor[1]);
@@ -415,13 +522,27 @@ void draw() { //----------------------------------------------------------------
         }
       }
 
+      if (isTaredTemp==1) {
+        isTared=1;
+        tareButton.setColorBackground(#0ACB15);
+        displayTareError=0;
+      }
+      if (isAuxTemp==1) {
+        isAux=1;
+        aux.setColorBackground(#0ACB15);
+        displayAuxError=0;
+      }
+
+      //println(isTaredTemp+"  ---  "+isAuxTemp);
+      // println(MMTKState + "   "+isTared+"   "+isAux);
+
+
       if (currentState == State.tare) {
         if (MMTKState == 0) {     //if mmtk is sending running state, transition to state 1
           currentState = State.getInput ;
         }
       }
 
-      println(MMTKState);
       //if (MMTKState == 0) {    
       // sleep(1000);
       // }
@@ -447,7 +568,7 @@ void draw() { //----------------------------------------------------------------
       cancel.hide();
       pause.hide();
       resume.hide();
-      label.hide();
+      controlPanelLabel.hide();
       user1.hide();
       user2.hide();
       user3.hide();
@@ -455,25 +576,52 @@ void draw() { //----------------------------------------------------------------
       userName.hide();
       saveSettings.hide();
       loadUser.hide();
+      userBack.hide();
       aux.show();
       jogFwd.show();
       jogBak.show();
       tareButton.show();
       startButton.show();
 
-      resume.setColorBackground(#002b5c); 
+      resume.setColorBackground(#002b5c);    //resetting colours of running screen buttons
       pause.setColorBackground(#002b5c);
       //sine.setColorBackground(#002b5c); 
       //square.setColorBackground(#002b5c);
+      /*
+      if (isAux==1) {
+       aux.setColorBackground(#0ACB15);
+       }
+       if (isTared==1) {
+       tareButton.setColorBackground(#0ACB15);
+       }
+       */
+      /*
+      if (jogButtonPressed==true) {
+       // serialPort.write("B");
+       println("B");
+       }
+       */
 
       fill(0, 0, 0);
       textSize(50);
-      text("Please Set Initial Position", 155, 135);
+      text("Please Set Initial Position", 155, 100);
       textSize(30);
-      text("1. Press AUX button until red LED disappears", 100, 250);
-      text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 300);
-      text("3. Press TARE button to set initial position", 100, 350);
-      text("4. Press START button to ready stretcher for pattern input", 100, 400);
+      text("1. Press AUX button until red LED disappears", 100, 200);
+      text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 250);
+      text("3. Press TARE button to set initial position", 100, 300);
+      text("4. Press START button to ready stretcher for pattern input", 100, 350);
+
+      if (displayAuxError==1) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        text("ERROR: Please AUX before JOGGING", 100, 400);
+      }
+
+      if (displayTareError==1) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        text("ERROR: Please TARE before READY", 100, 425);
+      }
       break;
     }
   case userProfile:
@@ -493,10 +641,12 @@ void draw() { //----------------------------------------------------------------
       cancel.hide();
       pause.hide();
       resume.hide();
-      label.hide();
+      controlPanelLabel.hide();
       loadUser.hide();
       userName.hide();
       saveSettings.hide();     
+
+      userBack.show();
 
       user1.setCaptionLabel(userSettings.getString("name0"));
       user2.setCaptionLabel(userSettings.getString("name1"));
@@ -509,6 +659,7 @@ void draw() { //----------------------------------------------------------------
       user4.show();
 
       //fill(0, 0, 0);
+      fill(0, 0, 0);
       textSize(40);
       text("Select User", 400, 60);
 
@@ -559,13 +710,14 @@ void draw() { //----------------------------------------------------------------
       sine.show(); 
       square.show(); 
       run.show();
-      label.show();
+      controlPanelLabel.show();
       loadUser.show();
       aux.hide();
       jogFwd.hide();
       jogBak.hide();
       tareButton.hide();
       startButton.hide();
+      userBack.hide();
 
       if (loadedUser==true) {
         saveSettings.show();
@@ -633,10 +785,21 @@ void draw() { //----------------------------------------------------------------
     }
   case running:
     {
+
       //sleep(100);   
       displayedUser=false;
-
+      /*
+      if (clearedRunningBackground==0) {
+       background(bgColor);
+       clearedRunningBackground=1;
+       }
+       */
       background(bgColor);
+      //wipe last displayed timer off canvas
+      hourLabel.hide();
+      minLabel.hide();
+      secLabel.hide();
+      //sleep(1000);
       stretchLen.hide();
       TimeA.hide();
       TimeB.hide(); 
@@ -648,10 +811,13 @@ void draw() { //----------------------------------------------------------------
       sine.hide(); 
       square.hide(); 
       run.hide();
-      label.hide();
+      controlPanelLabel.hide();
       cancel.show();
       pause.show();
       resume.show();
+      hourLabel.show();
+      minLabel.show();
+      secLabel.show();
       userName.hide();
       saveSettings.hide();
       loadUser.hide();
@@ -676,19 +842,27 @@ void draw() { //----------------------------------------------------------------
         }
 
         //displaying timer 
-        fill(0, 0, 0);
-        textSize(55);
-        text(hours+":", 275, 250);
+        /*
+        hourLabel.setText(str(hours)+":");
+         minLabel.setText(str(mins)+":");
+         secLabel.setText(str(secs));
+         */
 
         fill(0, 0, 0);
         textSize(55);
-        text(mins+":", 375, 250);
+        text(hours+":", 275, 450);
 
         fill(0, 0, 0);
         textSize(55);
-        text(secs, 475, 250);
-        //nextSec=nextSec+1000;
+        text(mins+":", 375, 450);
 
+        fill(0, 0, 0);
+        textSize(55);
+        text(secs, 475, 450);
+
+
+
+        //sending waveforms
         lastt = currentt;
         currentT = millis()-(int)pauseShift;
         runT = (currentT - startT);   //time now to start
@@ -742,7 +916,7 @@ void draw() { //----------------------------------------------------------------
       }
 
       if (millis()<endTime) {
-        int nextP = (int) nextPosition1;
+        int nextP = -(int) nextPosition1;    //negative to flip direction
         float nextV = (float) nextVel1;
         String printthis = "p" + nextP + "\nv" + nextV + "\n";
         serialPort.write(printthis);
@@ -761,6 +935,8 @@ void draw() { //----------------------------------------------------------------
         //println("stop time millis "+Math.ceil(millis()+(Math.abs(nextPosition1))/5));
         //println("pause time "+(Math.abs(nextPosition1))/5);
       }
+
+      plot();
 
       break;
     }
@@ -781,7 +957,7 @@ void draw() { //----------------------------------------------------------------
       cancel.hide();
       pause.hide();
       resume.hide();
-      label.hide();
+      //controlPanelLabel.hide();
       user1.hide();
       user2.hide();
       user3.hide();
@@ -789,6 +965,18 @@ void draw() { //----------------------------------------------------------------
       userName.hide();
       saveSettings.hide();
 
+      //XYplotOrigin[0] = 0;
+      //XYplotOrigin[1] = 0;
+      //resetting stuff on 'Tare' screen
+      isTared=0;
+      isAux=0;
+      tareButton.setColorBackground(#002b5c);
+      aux.setColorBackground(#002b5c);
+
+      clearedRunningBackground=0;
+      plotSetup=0;
+
+      textAlign(LEFT);
       fill(0, 0, 0);
       textSize(55);
       text("Please Wait", 275, 250);
@@ -813,7 +1001,175 @@ void draw() { //----------------------------------------------------------------
     }
   }
 }
+import java.util.Arrays;
 
+//=======PLOTTING!!!===================================================================
+/*
+int xInitPos=27;
+ int yInitPos=50;
+ int xPos = xInitPos;  
+ //Variables to draw a continuous line.
+ float lastxPos=xInitPos;
+ float lastheight=350;
+ int plotHeight=350;
+ int plotWidth=970;
+ int madePlane=0;
+ */
+
+
+// Generate the plot
+int[] XYplotFloatDataDims = {5, 10000};
+int[] XYplotIntDataDims = {5, 10000};
+
+// XY Plot
+int[] XYplotOrigin = {133, 80};
+int[] XYplotSize = {800, 250};
+int XYplotColor = color(20, 20, 200);
+
+Graph XYplot = new Graph(XYplotOrigin[0], XYplotOrigin[1], XYplotSize[0], XYplotSize[1], XYplotColor); //(X,Y,W,H,C)
+
+float[][] XYplotFloatData = new float[XYplotFloatDataDims[0]][XYplotFloatDataDims[1]];  //creating plot array [5 possible vars] [10000 spots per var]
+int[][] XYplotIntData = new int[XYplotIntDataDims[0]][XYplotIntDataDims[1]];
+// This value grows and is used for slicing
+int XYplotCurrentSize = 0;
+
+int plotSetup=0;
+int periodsDisplayed=3;
+int clearPlotCounter=1;
+
+void plot() {
+
+  if (plotSetup==0) {
+    XYplot.xLabel="Run Time (sec)";
+    XYplot.yLabel="Stretch Length (mm)";
+    XYplot.Title="Stretch Length vs Run Time";  
+    XYplot.xDiv=2;  
+    XYplot.xMax=(timeA+timeB+timeC+timeD)/1000*periodsDisplayed; 
+    XYplot.xMin=0;  
+    XYplot.yMax=stretchL/1000*1.1;  //1.1 just so plot doesnt reach all the way to yMax 
+    XYplot.yMin=0;
+
+    plotSetup=1;
+  }
+  
+  // If the current data is longer than our buffer
+  // Have to expand the buffer and continue
+  /*
+        if (XYplotCurrentSize >= XYplotIntData[0].length) {
+   System.out.println("=========== expand buffer ==============");
+   int newLength = XYplotIntDataDims[1] + XYplotIntData[0].length;
+   int[][] tempIntData = new int[XYplotIntDataDims[0]][newLength];
+   float[][] tempFloatData = new float[XYplotFloatDataDims[0]][newLength];
+   
+   // Copy data to this bigger array
+   for (int i=0; i<tempIntData.length; i++) {
+   System.arraycopy(XYplotIntData[i], 0, tempIntData[i], 0, XYplotIntData[i].length);
+   }
+   for (int i=0; i<XYplotFloatData.length; i++) {
+   System.arraycopy(XYplotFloatData[i], 0, tempFloatData[i], 0, XYplotFloatData[i].length);
+   }
+   XYplotIntData = tempIntData;
+   XYplotFloatData = tempFloatData;
+   }
+   */
+   
+
+  // update the data buffer
+  XYplotFloatData[0][XYplotCurrentSize] = velocity;
+  XYplotFloatData[1][XYplotCurrentSize] = -position;
+  float nextP = (float) nextPosition1/1000;
+  //XYplotFloatData[1][XYplotCurrentSize] = (float) (Math.sin(currentt/timeA * Math.PI*0.5-Math.PI*0.25)+1.0);
+  XYplotFloatData[2][XYplotCurrentSize] = loadCell;
+  //XYplotFloatData[3][XYplotCurrentSize] = inputVolts;
+  XYplotFloatData[3][XYplotCurrentSize] = (runT+pauseShift)/1000;
+  XYplotFloatData[4][XYplotCurrentSize] = nextP;
+
+  XYplotIntData[0][XYplotCurrentSize] = feedBack;
+  XYplotIntData[1][XYplotCurrentSize] = MMTKState;
+  XYplotIntData[2][XYplotCurrentSize] = eStop;
+  XYplotIntData[3][XYplotCurrentSize] = stall;
+  XYplotIntData[4][XYplotCurrentSize] = direction;
+  
+
+  /*
+        if (loadCell > maxForce) {
+   maxForce = loadCell;
+   }
+   
+   if (position > maxDisplacment) {
+   maxDisplacment = position;
+   }
+   */
+   
+  
+  XYplotCurrentSize ++;
+
+
+  // Copy data to plot into new array for plotting
+  float[] plotTime = Arrays.copyOfRange(XYplotFloatData[3], 0, XYplotCurrentSize);
+  float[] plotDisplacement = Arrays.copyOfRange(XYplotFloatData[1], 0, XYplotCurrentSize);
+  float[] plotNewDisplacement = Arrays.copyOfRange(XYplotFloatData[4], 0, XYplotCurrentSize);
+
+  // check if graph need to expand
+  //if ( maxDisplacment > XYplot.xMax || maxForce > XYplot.xMin ) {
+  if (plotTime[plotTime.length-1] > XYplot.xMax ) {
+    //XYplot.xMax = max(maxDisplacment, mmtkUIConfig.getInt("mainPlotXMax"));
+    // XYplot.yMax = max(maxForce, mmtkUIConfig.getInt("mainPlotYMax"));
+
+   // XYplotOrigin[0] = XYplotCurrentSize;
+    Arrays.fill(XYplotFloatData[0], 0);
+    Arrays.fill(XYplotFloatData[1], 0);
+    Arrays.fill(XYplotFloatData[2], 0);
+    Arrays.fill(XYplotFloatData[3], 0);
+    Arrays.fill(XYplotFloatData[4], 0);
+    XYplotCurrentSize=0;
+
+    XYplot.xMin=XYplot.xMax;  
+    XYplot.xMax=(timeA+timeB+timeC+timeD)/1000*periodsDisplayed*clearPlotCounter; 
+    clearPlotCounter++;
+
+    //println(plotTime[plotTime.length-1]);
+    //println(XYplot.xMax);
+    //println("expand plot");
+  }
+
+
+
+  // draw the line graphs
+  XYplot.DrawAxis();
+  XYplot.GraphColor = XYplotColor;
+  XYplot.DotXY(plotTime, plotDisplacement);
+  XYplot.GraphColor = color(200, 20, 20);
+  
+  /*
+  
+  if (madePlane==0) {
+   fill(255, 255, 255);
+   //stroke(0,0,0);     //stroke color
+   //strokeWeight(1); 
+   rect(xInitPos, yInitPos, plotWidth, plotHeight);
+   madePlane=1;
+   }
+   position=map(position, 0, stretchL, 0, plotHeight-75);
+   
+   stroke(127, 34, 255);     //stroke color
+   strokeWeight(4); 
+   println("position "+ position);//stroke wider
+   //line(27, 350, 500, 375+position*1000); 
+   line(lastxPos, lastheight, xPos, 375+position*1000); 
+   lastxPos= xPos;
+   xPos++;
+   lastheight= 375+position*1000;
+   
+   if (xPos>=plotWidth+xInitPos) {
+   xPos=xInitPos;
+   lastxPos=xInitPos;
+   madePlane=0;
+
+   }
+      */
+}
+//=========================================================================================
 boolean onlyDigits(String str, int n)
 {
   boolean onlyDigits=true;
@@ -893,6 +1249,8 @@ void getUserSettings(int userNumber) {
     sinWave=0;
   }
 }
+
+
 
 void controlEvent(ControlEvent theEvent) {
   if (theEvent.isController()) {
@@ -1030,24 +1388,35 @@ void controlEvent(ControlEvent theEvent) {
       displayedUser=false;
       currentState=State.userProfile;
     }
-    
-    
-    if(parameter=="Aux"){
-      
+
+    if (parameter=="Back") {
+      loadedUser=false;
+      currentState=State.getInput;
     }
-    if(parameter=="Jog Back"){
-      
+
+    if (parameter=="Aux") {
+      serialPort.write("A");
     }
-    if(parameter=="Jog Fwd"){
-      
+    /*
+    if (parameter=="Jog Back") {
+     serialPort.write("B");
+     }
+     if (parameter=="Jog Fwd") {
+     serialPort.write("F");
+     }
+     */
+    if (parameter=="Tare") {
+      serialPort.write("T");
     }
-    if(parameter=="Tare"){
-      
+
+    if (parameter=="Ready") {
+      if (isTared==1) {
+        serialPort.write("R");
+      } else {
+        displayTareError=1;
+      }
     }
-    if(parameter=="Start"){
-      
-    }
-    
+
     /*
     // Send Serial Commands to MMTK
      if (!mockupSerial) {
