@@ -283,25 +283,7 @@ void setup() {
     .setColorBackground(#FA0000)
     .setColorForeground(#FF7C80);
 
-  cancel=cp5.addButton("Cancel")
-    //.setValue(1)
-    .setFont(createFont("Arial Black", 20))
-    .setPosition(675, 500)
-    .setSize(200, 75)
-    .setColorBackground(#FA0000)
-    .setColorForeground(#FF7C80);
 
-  pause=cp5.addButton("pause")
-    //.setValue(1)
-    .setFont(createFont("Arial Black", 20))
-    .setPosition(125, 500)
-    .setSize(200, 75);
-
-  resume=cp5.addButton("resume")
-    //.setValue(1)
-    .setFont(createFont("Arial Black", 20))
-    .setPosition(400, 500)
-    .setSize(200, 75);
 
   user1=cp5.addButton("user1")
     //.setValue(1)
@@ -415,6 +397,27 @@ void setup() {
    textSize(55);
    text(secs, 475, 250);
    */
+  x=485;
+  pause=cp5.addButton("pause")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x, 500)
+    .setSize(150, 75);
+
+  resume=cp5.addButton("resume")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x+=175, 500)
+    .setSize(150, 75);
+
+  cancel=cp5.addButton("Cancel")
+    //.setValue(1)
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(x+=175, 500)
+    .setSize(150, 75)
+    .setColorBackground(#FA0000)
+    .setColorForeground(#FF7C80);
+
 
   textFont(createFont("Arial", 16, true));
 
@@ -525,11 +528,13 @@ void draw() { //----------------------------------------------------------------
       if (isTaredTemp==1) {
         isTared=1;
         tareButton.setColorBackground(#0ACB15);
+        tareButton.setColorForeground(#5DFF5E);
         displayTareError=0;
       }
       if (isAuxTemp==1) {
         isAux=1;
         aux.setColorBackground(#0ACB15);
+        aux.setColorForeground(#5DFF5E);
         displayAuxError=0;
       }
 
@@ -601,26 +606,29 @@ void draw() { //----------------------------------------------------------------
        println("B");
        }
        */
-
+      fill(255, 255, 255);
+      rect(25, 25, 970, 425);
       fill(0, 0, 0);
       textSize(50);
-      text("Please Set Initial Position", 155, 100);
+      textAlign(CENTER);
+      text("Please Set Initial Position", 500, 100);
       textSize(30);
-      text("1. Press AUX button until red LED disappears", 100, 200);
-      text("2. Jog stretcher using FORWARD and BACK jog buttons", 100, 250);
-      text("3. Press TARE button to set initial position", 100, 300);
-      text("4. Press START button to ready stretcher for pattern input", 100, 350);
+      text("• Press AUX button until red LED disappears", 500, 200);
+      text("• Jog stretcher using FORWARD and BACK jog buttons", 500, 250);
+      text("• Press TARE button to set initial position", 500, 300);
+      text("• Press START button to ready stretcher for pattern input", 500, 350);
+      textAlign(LEFT);
 
       if (displayAuxError==1) {
         fill(#FF3B3B); //red
         textSize(15);
-        text("ERROR: Please AUX before JOGGING", 100, 400);
+        text("ERROR: Please AUX before JOGGING, TARE, or READY", 50, 400);
       }
 
       if (displayTareError==1) {
         fill(#FF3B3B); //red
         textSize(15);
-        text("ERROR: Please TARE before READY", 100, 425);
+        text("ERROR: Please TARE before READY", 50, 425);
       }
       break;
     }
@@ -848,17 +856,42 @@ void draw() { //----------------------------------------------------------------
          secLabel.setText(str(secs));
          */
 
-        fill(0, 0, 0);
-        textSize(55);
-        text(hours+":", 275, 450);
+        fill(255, 255, 255);
+        rect(37, 400, 400, 175);//for settings
+        rect(485, 400, 500, 80);//for timer
 
         fill(0, 0, 0);
-        textSize(55);
-        text(mins+":", 375, 450);
+        //for settings
+        textAlign(LEFT);
+        int x=45, y=425;
+        textSize(20);
+        if (sinWave==1) {
+          text("Wave: "+"Sinusoid", x, y);
+        } else if (squareWave==1) {
+          text("Wave: "+"Square", x, y);
+        }
+        text("Len: "+float(stretchLen.getText())+" mm", x, y+=35);
+        text("Run Hrs: "+float(Hours.getText())+" hrs", x, y+=35);
+        text("Run Mins: "+float(Minutes.getText())+" mins", x, y+=35);
+        text("Run Secs: "+float(Seconds.getText())+" s", x, y+=35);
+        text("A: "+float(TimeA.getText())+" s", x=300, y=425);
+        text("B: "+float(TimeB.getText())+" s", x, y+=35);
+        text("C: "+float(TimeC.getText())+" s", x, y+=35);
+        text("D: "+float(TimeD.getText())+" s", x, y+=35);
 
-        fill(0, 0, 0);
+
+
+
+
         textSize(55);
-        text(secs, 475, 450);
+        text(hours+":", 625, 460);
+
+
+        textSize(55);
+        text(mins+":", 725, 460);
+
+        textSize(55);
+        text(secs, 825, 460);
 
 
 
@@ -937,6 +970,8 @@ void draw() { //----------------------------------------------------------------
       }
 
       plot();
+      stroke(0, 0, 0);
+      strokeWeight(1);
 
       break;
     }
@@ -971,7 +1006,17 @@ void draw() { //----------------------------------------------------------------
       isTared=0;
       isAux=0;
       tareButton.setColorBackground(#002b5c);
+      tareButton.setColorForeground(#4B70FF);
       aux.setColorBackground(#002b5c);
+      aux.setColorForeground(#4B70FF);
+
+      //resetting plot
+      Arrays.fill(XYplotFloatData[0], 0);
+      Arrays.fill(XYplotFloatData[1], 0);
+      Arrays.fill(XYplotFloatData[2], 0);
+      Arrays.fill(XYplotFloatData[3], 0);
+      Arrays.fill(XYplotFloatData[4], 0);
+      XYplotCurrentSize=0;
 
       clearedRunningBackground=0;
       plotSetup=0;
@@ -979,7 +1024,7 @@ void draw() { //----------------------------------------------------------------
       textAlign(LEFT);
       fill(0, 0, 0);
       textSize(55);
-      text("Please Wait", 275, 250);
+      text("Please Wait...", 300, 250);
 
       nextPosition1=0;  //making sure last run's 'nextPosition1' value gets reset
       if (millis()<returnInitPosTime) {
@@ -1051,7 +1096,7 @@ void plot() {
 
     plotSetup=1;
   }
-  
+
   // If the current data is longer than our buffer
   // Have to expand the buffer and continue
   /*
@@ -1072,7 +1117,7 @@ void plot() {
    XYplotFloatData = tempFloatData;
    }
    */
-   
+
 
   // update the data buffer
   XYplotFloatData[0][XYplotCurrentSize] = velocity;
@@ -1089,7 +1134,7 @@ void plot() {
   XYplotIntData[2][XYplotCurrentSize] = eStop;
   XYplotIntData[3][XYplotCurrentSize] = stall;
   XYplotIntData[4][XYplotCurrentSize] = direction;
-  
+
 
   /*
         if (loadCell > maxForce) {
@@ -1100,8 +1145,8 @@ void plot() {
    maxDisplacment = position;
    }
    */
-   
-  
+
+
   XYplotCurrentSize ++;
 
 
@@ -1116,7 +1161,7 @@ void plot() {
     //XYplot.xMax = max(maxDisplacment, mmtkUIConfig.getInt("mainPlotXMax"));
     // XYplot.yMax = max(maxForce, mmtkUIConfig.getInt("mainPlotYMax"));
 
-   // XYplotOrigin[0] = XYplotCurrentSize;
+    // XYplotOrigin[0] = XYplotCurrentSize;
     Arrays.fill(XYplotFloatData[0], 0);
     Arrays.fill(XYplotFloatData[1], 0);
     Arrays.fill(XYplotFloatData[2], 0);
@@ -1124,8 +1169,9 @@ void plot() {
     Arrays.fill(XYplotFloatData[4], 0);
     XYplotCurrentSize=0;
 
+    
     XYplot.xMin=XYplot.xMax;  
-    XYplot.xMax=(timeA+timeB+timeC+timeD)/1000*periodsDisplayed*clearPlotCounter; 
+    XYplot.xMax=((timeA+timeB+timeC+timeD)/1000)*periodsDisplayed*clearPlotCounter; 
     clearPlotCounter++;
 
     //println(plotTime[plotTime.length-1]);
@@ -1140,10 +1186,10 @@ void plot() {
   XYplot.GraphColor = XYplotColor;
   XYplot.DotXY(plotTime, plotDisplacement);
   XYplot.GraphColor = color(200, 20, 20);
-  
+
   /*
   
-  if (madePlane==0) {
+   if (madePlane==0) {
    fill(255, 255, 255);
    //stroke(0,0,0);     //stroke color
    //strokeWeight(1); 
@@ -1165,9 +1211,9 @@ void plot() {
    xPos=xInitPos;
    lastxPos=xInitPos;
    madePlane=0;
-
+   
    }
-      */
+   */
 }
 //=========================================================================================
 boolean onlyDigits(String str, int n)
@@ -1406,13 +1452,17 @@ void controlEvent(ControlEvent theEvent) {
      }
      */
     if (parameter=="Tare") {
-      serialPort.write("T");
+      if (isAux==1) {
+        serialPort.write("T");
+      } else {
+        displayAuxError=1;
+      }
     }
 
     if (parameter=="Ready") {
-      if (isTared==1) {
+      if (isTared==1 && isAux==1) {
         serialPort.write("R");
-      } else {
+      } else if (isTared==0) {
         displayTareError=1;
       }
     }
