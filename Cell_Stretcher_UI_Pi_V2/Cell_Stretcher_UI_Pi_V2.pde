@@ -8,7 +8,7 @@ PFont buttonTitle_f, mmtkState_f, indicatorTitle_f, indicatorNumbers_f;
 
 //Cell Stretcher States
 enum State {
-  tare, userProfile, getInput, running, returnInitPos
+  tare, userProfile, getInput, running, returnInitPos, stopped
 };  //UI states
 State currentState=State.tare;
 
@@ -86,7 +86,7 @@ float maxDisplacment = 0;
 //steven's added variables and stuff
 //Cp5 buttons, text etc.
 Textfield stretchLen, TimeA, TimeB, TimeC, TimeD, Hours, Minutes, Seconds, userName;
-Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings, loadUser, jogBak, jogFwd, tareButton, startButton, aux, userBack;
+Button sine, square, run, cancel, pause, resume, user1, user2, user3, user4, saveSettings, loadUser, jogBak, jogFwd, tareButton, startButton, aux, userBack, eStopAux, eStopResume;
 Textlabel controlPanelLabel;
 
 //vars for runtime timer
@@ -138,9 +138,9 @@ boolean windowPosFlag;
 void setup() {
   windowPosFlag=false;
   size (1024, 570);  //window size
-  surface.setTitle("Cell Stretcher");
-  
-  
+  surface.setTitle("CaT Stretcher");
+
+
 
   String[] serialPortList = Serial.list();
   String[] serialPortChoices = new String[serialPortList.length];
@@ -155,8 +155,8 @@ void setup() {
   serialPort = new Serial(this, serialPortName, 57600);
 
 
-// serialPort = new Serial(this, "/dev/ttyUSB0", 57600);   //fake uno
-//serialPort = new Serial(this, "/dev/ttyACM0", 57600);  //eligoo uno
+  // serialPort = new Serial(this, "/dev/ttyUSB0", 57600);   //fake uno
+  //serialPort = new Serial(this, "/dev/ttyACM0", 57600);  //eligoo uno
 
   topSketchPath=sketchPath();
   userSettings=loadJSONObject(topSketchPath+"/users.json");
@@ -371,8 +371,8 @@ void setup() {
     .setText("25")
     .setSize(100, 50)
     .setAutoClear(false);
-    
-    
+
+
 
   loadUser=cp5.addButton("Load User")
     .setPosition(x, y+90)
@@ -447,48 +447,68 @@ void setup() {
     .setColorBackground(#FA0000)
     .setColorForeground(#FF7C80);
 
+  eStopAux=cp5.addButton("eStopAux")
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(210, 460)
+    .setSize(200, 75)
+    .setLabel("Aux");
+
+  eStopResume=cp5.addButton("eStopResume")
+    .setFont(createFont("Arial Black", 20))
+    .setPosition(600, 460)
+    .setSize(200, 75)
+    .setLabel("Resume");
+  ;
 
   textFont(createFont("Arial", 16, true));
-  
+
   //hide all CP5 elements buttons upon startup
   stretchLen.hide();
-      TimeA.hide();
-      TimeB.hide(); 
-      TimeC.hide(); 
-      TimeD.hide(); 
-      Hours.hide(); 
-      Minutes.hide(); 
-      Seconds.hide();
-      sine.hide(); 
-      square.hide(); 
-      run.hide();
-      cancel.hide();
-      pause.hide();
-      resume.hide();
-      controlPanelLabel.hide();
-      user1.hide();
-      user2.hide();
-      user3.hide();
-      user4.hide();
-      userName.hide();
-      saveSettings.hide();
-      loadUser.hide();
-      userBack.hide();
-      aux.hide();
-      jogBak.hide();
-      jogFwd.hide();
-      tareButton.hide();
-      startButton.hide();
-      
+  TimeA.hide();
+  TimeB.hide(); 
+  TimeC.hide(); 
+  TimeD.hide(); 
+  Hours.hide(); 
+  Minutes.hide(); 
+  Seconds.hide();
+  sine.hide(); 
+  square.hide(); 
+  run.hide();
+  cancel.hide();
+  pause.hide();
+  resume.hide();
+  controlPanelLabel.hide();
+  user1.hide();
+  user2.hide();
+  user3.hide();
+  user4.hide();
+  userName.hide();
+  saveSettings.hide();
+  loadUser.hide();
+  userBack.hide();
+  aux.hide();
+  jogBak.hide();
+  jogFwd.hide();
+  tareButton.hide();
+  startButton.hide();
 }
 
 int timerAdjust;
+State lastCurrentState;
+int lastIsAux;
+int isAuxCounter;
+boolean savedLastState=false;
+
+boolean firstAux=false;
+int displayEstopError=0;
+
+boolean firstEstopAux=false;
 void draw() { //----------------------------------------------------------------------------------------------------------------------------------------------- 
-  if(!windowPosFlag){
-     surface.setLocation(0,-1);
-     windowPosFlag=true;
+  if (!windowPosFlag) {
+    surface.setLocation(0, -1);
+    windowPosFlag=true;
   }
-  
+
   //serial parsing
   while (serialPort.available()>0) {
     String myString = "";
@@ -515,11 +535,12 @@ void draw() { //----------------------------------------------------------------
     // split the string at delimiter (space)
     String[] tempData = split(myString, '\t');   
 
+    lastIsAux=isAuxTemp;
     // build the arrays for bar charts and line graphs
     if (tempData.length ==  10) {
       // This is a normal data frame
       // SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE BT_FWD BT_BAK BT_TARE BT_START BT_AUX and a space
-
+      //lastIsAux=isAuxTemp;
       try {
         velocity = Float.parseFloat(trim(tempData[0]));
         position = Float.parseFloat(trim(tempData[1]));
@@ -531,7 +552,6 @@ void draw() { //----------------------------------------------------------------
         isTaredTemp = Integer.parseInt(trim(tempData[7]));
         isAuxTemp = Integer.parseInt(trim(tempData[8]));
 
-        println(MMTKState);
         //positionCorrected = position - (loadCell * correctionFactor[0] - loadCell * loadCell * correctionFactor[1]);
       }
       catch (NumberFormatException e) {
@@ -539,6 +559,7 @@ void draw() { //----------------------------------------------------------------
       }
     }
 
+    println(MMTKState+"     "+eStop+"     "+isAuxTemp+"     "+isAux);
     //checking if tare or aux has been pressed
     if (isTaredTemp==1) {
       isTared=1;
@@ -551,7 +572,11 @@ void draw() { //----------------------------------------------------------------
       aux.setColorBackground(#0ACB15);
       aux.setColorForeground(#5DFF5E);
       displayAuxError=0;
+      displayEstopError=0;
+    } else if (isAuxTemp==0) {
+      isAux=0;
     }
+
 
     //if mmtk sends that is is tared, transition to next state
     if (currentState == State.tare) {
@@ -562,7 +587,20 @@ void draw() { //----------------------------------------------------------------
     //}
   }
 
-  //states: tare, userProfile, getInput, running
+  //states: tare, userProfile, getInput, running, stopped
+  //mmtk states: running, stopped, hold, jogFwd, jogBak, fastFwd, fastBak, noChange
+  if (currentState!=State.tare&& eStop==1) {
+    if (savedLastState==false) {
+      lastCurrentState=currentState;  //save state before eStop
+      savedLastState=true;
+    }
+
+    if (currentState==State.running||currentState==State.returnInitPos) {
+      isPaused=true;
+      pauseStart=millis();
+    }
+    currentState=State.stopped;
+  }
   switch (currentState) {
   case tare:
     {
@@ -590,6 +628,8 @@ void draw() { //----------------------------------------------------------------
       saveSettings.hide();
       loadUser.hide();
       userBack.hide();
+      eStopAux.hide();
+      eStopResume.hide();
       aux.show();
       jogFwd.show();
       jogBak.show();
@@ -603,28 +643,42 @@ void draw() { //----------------------------------------------------------------
       fill(255, 255, 255);
       rect(25, 25, 970, 425);
       fill(0, 0, 0);
-      textSize(50);
+      textFont(createFont("Arial Bold", 50, true));
       textAlign(CENTER);
-      text("Please Set Initial Position", 500, 100);
+      text("Please Set Initial Position", 500, 90);
       textAlign(LEFT);
-      textSize(30);
-      text("1. Press the AUX button", 100, 200);
-      text("2. Jog stretcher using the FORWARD and BACK jog buttons", 100, 250);
-      text("3. Press the TARE button to set initial position", 100, 300);
-      text("4. Press the READY button to ready stretcher for pattern input", 100, 350);
+      textFont(createFont("Arial", 30, true));
+      fill(#FF3B3B); //red
+      text("1. Make sure EMERGENCY STOP button is released", 100, 170);
+      fill(0, 0, 0);
+      text("2. Press the AUX button ", 100, 220);
+      text("3. Jog stretcher using the FORWARD and BACK jog buttons", 100, 270);
+      text("4. Press the TARE button to set initial position", 100, 320);
+      text("5. Press the READY button to ready stretcher for pattern input", 100, 370);
 
-
+      if (MMTKState==1) {
+        aux.setColorBackground(#002b5c);
+        aux.setColorForeground(#4B70FF);
+      }
       if (displayAuxError==1) {
         fill(#FF3B3B); //red
         textSize(15);
-        text("ERROR: Please AUX button before JOGGING, TARE, or READY", 50, 400);
+        text("ERROR: Please AUX button before JOGGING, TARE, or READY", 50, 410);
       }
 
       if (displayTareError==1) {
         fill(#FF3B3B); //red
         textSize(15);
-        text("ERROR: Please TARE before READY", 50, 425);
+        text("ERROR: Please AUX and TARE before READY", 50, 435);
       }
+
+      if (displayEstopError==1) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        text("ERROR: Please release ESTOP before AUX", 600, 410);
+      }
+
+
       break;
     }
   case userProfile:
@@ -648,6 +702,8 @@ void draw() { //----------------------------------------------------------------
       loadUser.hide();
       userName.hide();
       saveSettings.hide();     
+      eStopAux.hide();
+      eStopResume.hide();
 
       userBack.show();
 
@@ -663,11 +719,11 @@ void draw() { //----------------------------------------------------------------
 
       //fill(0, 0, 0);
       fill(0, 0, 0);
-      textSize(40);
+      textFont(createFont("Arial Bold", 40, true));
       text("Select User", 400, 60);
 
       int y;
-      textSize(25);
+      textFont(createFont("Arial", 25, true));
       text("Wave: ", 12, y=195);
       text("Length: ", 12, y=y+45);
       text("Time A: ", 12, y=y+45);
@@ -726,6 +782,8 @@ void draw() { //----------------------------------------------------------------
       tareButton.hide();
       startButton.hide();
       userBack.hide();
+      eStopAux.hide();
+      eStopResume.hide();
 
       if (loadedUser==true) {
         saveSettings.show();
@@ -805,6 +863,8 @@ void draw() { //----------------------------------------------------------------
       userName.hide();
       saveSettings.hide();
       loadUser.hide();
+      eStopAux.hide();
+      eStopResume.hide();
 
       //keep track of seconds to adjust timer
       if (start==1 && millis()<endTime) {
@@ -849,7 +909,7 @@ void draw() { //----------------------------------------------------------------
         text("C: "+float(TimeC.getText())+" s", x, y+=35);
         text("D: "+float(TimeD.getText())+" s", x, y+=35);
 
-        textSize(55);
+        textFont(createFont("Arial Bold", 55, true));
         if (hours>9) {
           text(hours+":", 610, 440);
         } else {
@@ -867,7 +927,7 @@ void draw() { //----------------------------------------------------------------
         } else {
           text("0"+secs, 810, 440);
         }
-
+        textFont(createFont("Arial", 55, true));
 
 
         //sending waveforms
@@ -975,6 +1035,8 @@ void draw() { //----------------------------------------------------------------
       user4.hide();
       userName.hide();
       saveSettings.hide();
+      eStopAux.hide();
+      eStopResume.hide();
 
       isTared=0;
       isAux=0;
@@ -996,7 +1058,7 @@ void draw() { //----------------------------------------------------------------
 
       textAlign(LEFT);
       fill(0, 0, 0);
-      textSize(55);
+      textFont(createFont("Arial Bold", 55, true));
       text("Please Wait...", 300, 250);
 
       nextPosition1=0;  //making sure last run's 'nextPosition1' value gets reset
@@ -1006,14 +1068,91 @@ void draw() { //----------------------------------------------------------------
         String printthis = "p" + nextP + "\nv" + nextV + "\n";
         serialPort.write(printthis);
         System.out.println(printthis);
-        StateTransitionPause=millis()+200;
+        StateTransitionPause=millis()+100;
       } else {
         //print(pauseTime);
         //sleep(4000);
-        serialPort.write("S");
+        //serialPort.write("S");
         if (millis()>StateTransitionPause) {   //making sure arduino has time to change state before processing
-          currentState=State.tare;
+          serialPort.write("B"); 
+
+          //sending to hold state momentarily so machine will not skip past tare screen
+          if (millis()>StateTransitionPause+100) {//more delay to make sure arduino state has transitioned before UI is set to tare state (to prevent occasional skipping of UI tare state)
+            currentState=State.tare;
+          }
         }
+      }
+      break;
+    }
+  case stopped:
+    {
+      background(bgColor);
+      //hide everything
+      user1.hide();
+      user2.hide();
+      user3.hide();
+      user4.hide();
+      stretchLen.hide();
+      TimeA.hide();
+      TimeB.hide(); 
+      TimeC.hide(); 
+      TimeD.hide(); 
+      Hours.hide(); 
+      Minutes.hide(); 
+      Seconds.hide();
+      sine.hide(); 
+      square.hide(); 
+      run.hide();
+      cancel.hide();
+      pause.hide();
+      resume.hide();
+      controlPanelLabel.hide();
+      loadUser.hide();
+      userName.hide();
+      saveSettings.hide();  
+      aux.hide();
+      jogFwd.hide();
+      jogBak.hide();
+      tareButton.hide();
+      startButton.hide();
+      userBack.hide();
+
+      eStopAux.show();
+      eStopResume.show();
+
+      fill(255, 255, 255);
+      rect(25, 25, 970, 400);
+      fill(0,0,0); //red
+      textFont(createFont("Arial Bold", 55, true));
+      textAlign(CENTER);
+      text("eStop Pressed", 500, 100);
+      textAlign(LEFT);
+      textFont(createFont("Arial ", 30, true));
+ 
+      fill(#FF3B3B); //red
+      text("1. Release THE EMERGENCY STOP button WHEN SAFE", 100, 200);
+      fill(0, 0, 0);
+      text("2. Press the AUX button ", 100, 250);
+      text("3. Press the RESUME button to pick up where you left off", 100, 300);
+
+      if (isAux==1) {
+        eStopAux.setColorBackground(#0ACB15);
+        eStopAux.setColorForeground(#5DFF5E);
+      } else {
+        eStopAux.setColorBackground(#002b5c);
+        eStopAux.setColorForeground(#4B70FF);
+      }
+
+      if (displayAuxError==1) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        text("ERROR: Please AUX button before RESUME", 50, 375);
+      }
+
+      if (displayEstopError==1) {
+        fill(#FF3B3B); //red
+        textSize(15);
+        text("ERROR: Please release ESTOP before AUX", 50, 400);
       }
       break;
     }
@@ -1253,7 +1392,7 @@ void controlEvent(ControlEvent theEvent) {
         //resume.setColorBackground(#4B70FF); 
         //pause.setColorBackground(#002b5c);
       }
-      
+
       currentState=State.returnInitPos;
       endTime=999999999;
       start=0;
@@ -1335,6 +1474,10 @@ void controlEvent(ControlEvent theEvent) {
     }
 
     if (parameter=="Aux") {
+      if (firstAux==true&& eStop==1) {
+        displayEstopError=1;
+      }
+      firstAux=true;
       serialPort.write("A");
     }
     /*
@@ -1356,8 +1499,37 @@ void controlEvent(ControlEvent theEvent) {
     if (parameter=="Ready") {
       if (isTared==1 && isAux==1) {
         serialPort.write("R");
-      } else if (isTared==0) {
+      } else {
         displayTareError=1;
+      }
+    }
+
+    if (parameter=="eStopAux") {
+      if (firstEstopAux==true&& eStop==1) {
+        displayEstopError=1;
+      }
+      firstEstopAux=true;
+      serialPort.write("A");
+    }
+    if (parameter=="eStopResume") {
+      if (isAux==1) {
+        serialPort.write("R");
+        currentState=lastCurrentState;
+        eStopAux.setColorBackground(#002b5c);
+        eStopAux.setColorForeground(#4B70FF);
+        savedLastState=false;
+        if (currentState==State.running||currentState==State.returnInitPos) {
+          if (isPaused==true) {
+            isPaused=false;
+            pauseFin=millis();
+            endTime=endTime+(pauseFin-pauseStart);   //readjust endTime
+            pauseShift+=(pauseFin-pauseStart);
+            nextSec+=pauseFin-pauseStart;
+            returnInitPosTime+=pauseFin-pauseStart;
+          }
+        }
+      } else {
+        displayAuxError=1;
       }
     }
   }

@@ -396,12 +396,13 @@ void loop() {
     }
 
     if (incomingByte == 'b' || incomingByte == 'B') {
-      if (Serial.readStringUntil('\n') == "egin") {
+      //if (Serial.readStringUntil('\n') == "egin") {
         // Start Running
-        if (MMTKState == hold) {
-          MMTKNextState = running;
-        }
-      }
+        //if (MMTKState == hold) {
+          MMTKNextState = hold;
+          MMTKState = hold;
+        //}
+     //}
     }
 
     if (incomingByte == 's' || incomingByte == 'S') {
@@ -535,6 +536,7 @@ void loop() {
 
 
     case stopped: // Stopped, Motor is Disabled (HIGH-Z)
+      isAux = 0;
       if (auxButton == press) {
         isAux = 1;
         // Only allow transition out of stopped if stepper is not in haulted state
@@ -793,8 +795,21 @@ void loop() {
 
 #endif
 
+/*
+  // Monitor Estop Button for 2nd time
+#ifdef USE_DIRECT_PORT_MANIPULATION_FOR_ENN_SENSE
+  eStopInput = (STEPPER_ENN_SENS_PORT & (1 << STEPPER_ENN_SENS_PIN));
+#else
+  eStopInput = digitalRead(STEPPER_ENN_SENS);
+#endif
 
 
+  // Check if extenal ESTOP is active, if so turn off arduino estop
+  if (eStopInput) {
+    digitalWrite(STEPPER_ENN, HIGH);
+    MMTKState = stopped;
+  }
+*/
   // Logging
   // Logging format
   // NEW_DATA SPEED POSITION LOADCELL FEEDBACK_COUNT STATE ESTOP STALL DIRECTION INPUT_VOLTAGE
@@ -897,7 +912,7 @@ void loop() {
     Serial.print("\n");
 
     isTared = 0;
-    isAux = 0;
+
   }
 
 
